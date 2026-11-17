@@ -478,7 +478,7 @@ function catchItem(object, now) {
     score += value;
     recordRoundCatch(round, type, combo, score);
     const unlocked = announceMissions(round);
-    if (isNew || unlocked) checkpointRound(round);
+    checkpointRound(round);
 
     if (rare) {
       const legendary = rare.tier === 5;
@@ -568,12 +568,13 @@ function finish() {
     byId("final-best").textContent = best;
     celebrateRecord(score > summary.previousBest);
     renderRoundSummary(summary);
-  }).catch(() => {
+  }).catch((error) => {
     byId("save-warning").hidden = false;
-    reportSaveError();
+    reportSaveError(error);
   }).finally(() => {
     byId("replay").disabled = false;
     byId("return-title").disabled = false;
+    releaseSession();
   });
   byId("time").textContent = "0";
   byId("final-score").textContent = score;
@@ -591,6 +592,8 @@ function finish() {
 }
 
 function frame(now) {
+  if (state !== "playing") return;
+  if (sessionRecord()?.owner !== sessionOwner) { stopTransferredGame(); return; }
   const elapsed = now - startedAt;
   if (elapsed >= duration + powers.extension) {
     finish();
@@ -631,11 +634,41 @@ function frame(now) {
   renderPowerHud(now);
   effects = effects.filter((effect) => now - effect.at < 800);
   draw(now);
-  requestAnimationFrame(frame);
+  animationId = requestAnimationFrame(frame);
 }
 
-function start() {
-  if (state === "playing" || byId("replay").disabled) return;
+let pausedAt = 0;
+let animationId = 0;
+function start() { return beginSession(); }
+
+function pauseGame() {
+  if (state !== "playing") return;
+  pausedAt = performance.now();
+  state = "paused";
+  cancelAnimationFrame(animationId);
+  keys.clear();
+  checkpointRound(round);
+  if (!byId("resume-dialog").open) byId("resume-dialog").showModal();
+  if (audio?.state === "running") void audio.suspend().catch(() => {});
+}
+byId("resume-game").addEventListener("click", () => {
+  if (state !== "paused") return;
+  if (!sessionHeld || sessionRecord()?.owner !== sessionOwner) { stopTransferredGame(); return; }
+  const delay = performance.now() - pausedAt;
+  startedAt += delay;
+  for (const name of ["feverEnd", "magnetEnd", "guardEnd"]) if (powers[name]) powers[name] += delay;
+  if (moodUntil) moodUntil += delay;
+  if (legendUntil) legendUntil += delay;
+  if (rareReaction) rareReaction.at += delay;
+  for (const effect of effects) effect.at += delay;
+  lastFrame = performance.now();
+  state = "playing";
+  byId("resume-dialog").close();
+  if (!muted) void enableAudio();
+  animationId = requestAnimationFrame(frame);
+});
+function startGame() {
+  if (!sessionHeld || !gameAccessAllowed || state === "playing" || state === "paused" || byId("replay").disabled) return;
   refreshTitleProgress();
   sea = availableSea(stageChoice.value, levelInfo(savedProgress.xp).level);
   round = newRound(best, new Date(), sea.id);
@@ -668,7 +701,7 @@ function start() {
   if (!muted) void enableAudio().then((enabled) => {
     if (enabled && state === "playing") sound("start");
   });
-  requestAnimationFrame(frame);
+  animationId = requestAnimationFrame(frame);
 }
 
 stageChoice.addEventListener("change", () => {
@@ -693,13 +726,13 @@ byId("return-title").addEventListener("click", () => {
 });
 
 function handlePointer(event) {
-  if (state !== "playing" || !event.isPrimary) return;
+  if (state !== "playing" || !event.isPrimary || !Number.isFinite(event.clientX)) return;
   const rect = canvas.getBoundingClientRect();
   moveCat(event.clientX - rect.left);
 }
 
 canvas.addEventListener("pointerdown", (event) => {
-  if (state !== "playing" || !event.isPrimary) return;
+  if (state !== "playing" || !event.isPrimary || !Number.isFinite(event.clientX)) return;
   if (event.pointerType !== "mouse") canvas.setPointerCapture(event.pointerId);
   handlePointer(event);
 });
@@ -710,14 +743,14 @@ window.addEventListener("keydown", (event) => {
   keys.add(event.key);
 });
 window.addEventListener("keyup", (event) => keys.delete(event.key));
-window.addEventListener("blur", () => keys.clear());
+window.addEventListener("blur", () => { keys.clear(); pauseGame(); });
 
 sea = availableSea(stageChoice.value, levelInfo(savedProgress.xp).level);
 resize();
 void startSaveProtection();
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState !== "hidden") return;
-  if (state === "playing") checkpointRound(round);
+  if (state === "playing") pauseGame();
   if (unsavedRounds.length) void retryPendingRounds();
   else if (state !== "playing") void startSaveProtection();
 });

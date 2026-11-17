@@ -11,6 +11,7 @@ const saveIndicator = progressElement("save-indicator");
 let indicatorTimer;
 let lastCodeAt = null;
 let pendingImport = null;
+let pendingImportCounter;
 let importRequest = 0;
 let restoring = false;
 
@@ -172,7 +173,7 @@ function renderSaveOverview() {
   const p = savedProgress;
   let latest = saveStatus.at;
   try { latest = readSaveHistory()[0]?.at ?? latest; } catch { /* Read-only display. */ }
-  const states = { idle: "オン", saved: "セーブ完了", recovered: "自動バックアップから復旧", failed: "保存できませんでした" };
+  const states = { conflict: "再読み込みが必要です", idle: "オン", saved: "セーブ完了", recovered: "自動バックアップから復旧", failed: "保存できませんでした" };
   const formatDate = (value) => typeof value === "string" && Number.isFinite(Date.parse(value))
     ? dateFormat.format(new Date(value)) : "—";
   saveOverview.replaceChildren();
@@ -199,7 +200,8 @@ document.addEventListener("save-status", () => {
   clearTimeout(indicatorTimer);
   saveIndicator.hidden = false;
   saveIndicator.classList.toggle("save-error", saveStatus.kind === "failed");
-  saveIndicator.textContent = saveStatus.kind === "saved" ? "セーブ完了"
+  saveIndicator.textContent = saveStatus.kind === "conflict" ? "別の画面で更新されました。再読み込みしてください。"
+    : saveStatus.kind === "saved" ? "セーブ完了"
     : saveStatus.kind === "recovered" ? "バックアップから復旧しました"
     : "保存できません。引き継ぎコードかファイルを保存してください。";
   indicatorTimer = setTimeout(() => { saveIndicator.hidden = true; }, saveStatus.kind === "failed" ? 6500 : 1900);
@@ -270,6 +272,7 @@ function previewText(p, highScore) {
 function previewRestore(raw) {
   const validated = validateSaveArchive(raw);
   pendingImport = raw;
+  pendingImportCounter = readProgress().saveCounter;
   refreshTitleProgress();
   const list = progressElement("restore-summaries");
   list.replaceChildren();
@@ -326,13 +329,15 @@ progressElement("confirm-restore").addEventListener("click", async () => {
   button.disabled = true;
   importInput.disabled = true;
   try {
-    const restored = await restoreSaveArchive(pendingImport);
+    const restored = await restoreSaveArchive(pendingImport, pendingImportCounter);
     applyRestoredSettings(restored);
     refreshTitleProgress();
     playerStatus.textContent = "セーブデータを復元しました。";
     cancelImport();
-  } catch {
-    playerStatus.textContent = "復元できませんでした。現在のセーブデータを保護しました。";
+  } catch (error) {
+    playerStatus.textContent = error.name === "SaveConflict"
+      ? "別の画面で更新されました。再読み込みしてから復元してください。"
+      : "復元できませんでした。現在のセーブデータを保護しました。";
   } finally {
     restoring = false;
     importInput.disabled = false;

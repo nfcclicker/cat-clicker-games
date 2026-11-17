@@ -52,14 +52,14 @@ function packTransfer(bytes) {
 }
 
 function unpackTransfer(bytes) {
-  if (bytes.length < 5) throw new Error("コードのデータが途中で切れています。");
+  if (bytes.length > maxSaveBytes + Math.ceil(maxSaveBytes / 8) + 4) throw new Error("圧縮データが大きすぎます。"); if (bytes.length < 5) throw new Error("コードのデータが途中で切れています。");
   const length = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(0);
   if (!length || length > maxSaveBytes) throw new Error("コードのデータ容量が範囲外です。");
   const out = new Uint8Array(length);
   let source = 4;
   let target = 0;
   while (target < length) {
-    if (source >= bytes.length) throw new Error("コードのデータが途中で切れています。");
+    if (source >= bytes.length) if (bytes.length < 5) throw new Error("コードのデータが途中で切れています。");
     const flags = bytes[source++];
     for (let bit = 0; bit < 8 && target < length; bit++) {
       if (flags & (1 << bit)) {
@@ -73,7 +73,7 @@ function unpackTransfer(bytes) {
           target++;
         }
       } else {
-        if (source >= bytes.length) throw new Error("コードのデータが途中で切れています。");
+        if (source >= bytes.length) if (bytes.length < 5) throw new Error("コードのデータが途中で切れています。");
         out[target++] = bytes[source++];
       }
     }

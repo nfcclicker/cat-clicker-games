@@ -7,7 +7,7 @@ const repo = path.resolve(__dirname, "..");
 const map = new Map();
 let fail = () => false;
 const context = vm.createContext({
-  navigator: { locks: { request: (_key, action) => Promise.resolve().then(action) } }, console, Path2D: class {}, TextEncoder, TextDecoder, btoa, atob,
+  navigator: { locks: { request: (_key, action) => Promise.resolve().then(action) } }, console, Path2D: class {}, TextEncoder, TextDecoder, btoa, atob, crypto,
   assert, deep: (a,b) => assert.equal(JSON.stringify(a),JSON.stringify(b)),
   failWrite: (callback) => { fail = callback; },
   localStorage: {
@@ -21,7 +21,7 @@ const legacy = { xp: 990, plays: 8, catches: 103, gold: 5, maxCombo: 19, peakSco
   days: ["2026-11-14","2026-11-15"], achievements: ["first","beginner","combo10","score300"],
   collection: {ghost: {count: 2, firstSeen: "2026-11-14T03:00:00.000Z"}} };
 map.set("cat-clicker:white-basket:progress:v2", JSON.stringify(legacy));
-for (const file of ["stages.js","fish-data.js","achievements.js","player-data.js","transfer-code.js","save-history.js","save-data.js","progress.js"]) {
+for (const file of ["stages.js","fish-data.js","achievements.js","player-data.js","transfer-code.js","validation.js","save-history.js","save-data.js","progress.js"]) {
   vm.runInContext(fs.readFileSync(path.join(repo, "game/white-basket", file), "utf8"), context, { filename: file });
 }
 (async () => vm.runInContext(`(async () => {
@@ -88,7 +88,7 @@ for (const file of ["stages.js","fish-data.js","achievements.js","player-data.js
     progress: normalizeProgress(readProgress(), 22) };
   assert.equal(v22.progress.revision, 22);
   const migrated = validateSaveArchive(v22).progress;
-  assert.equal(migrated.revision, 24);
+  assert.equal(migrated.revision, 25);
   assert.equal(migrated.xp, v22.progress.xp);
   deep(migrated.daily, v22.progress.daily);
   deep(migrated.weekly, v22.progress.weekly);
@@ -149,11 +149,13 @@ for (const file of ["stages.js","fish-data.js","achievements.js","player-data.js
   assert.equal(readProgress().xp, baseXp + 140);
   const matchingProgress = makeSaveArchive(readProgress(), 788);
   failWrite((key) => key === progressKey);
+  await assert.rejects(restoreSaveArchive(matchingProgress));
+  failWrite(() => false);
   assert.equal((await restoreSaveArchive(matchingProgress)).best, 788);
   assert.equal(readStoredBest(), 788);
   failWrite(() => false);
   const legacyRestored = await restoreSaveArchive(v22);
-  assert.equal(legacyRestored.progress.revision, 24);
+  assert.equal(legacyRestored.progress.revision, 25);
   assert.equal(readStoredBest(), 467);
   assert.equal(readProgress().collection.ghost.count, 2);
   assert.equal(readProgress().xp, v22.progress.xp);

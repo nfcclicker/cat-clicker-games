@@ -6,7 +6,7 @@ const stageMigrationBackupKey = "cat-clicker:white-basket:backup:before-v23";
 const restoreBackupKey = "cat-clicker:white-basket:backup:before-restore";
 const restoreJournalKey = "cat-clicker:white-basket:restore-journal";
 const saveFormat = "osakana-catch:white-basket";
-const saveVersion = 3;
+const saveVersion = 4;
 const maxSaveBytes = 2 * 1024 * 1024;
 
 function rawSavePair() {
@@ -60,7 +60,12 @@ function archiveLegacySave() {
   try { revision = JSON.parse(pair.progress)?.revision; } catch {
     // Preserve the original even if its JSON cannot be decoded.
   }
-  if (revision === 24) return;
+  if (revision === 25) return;
+  if (revision === 24) {
+    const key = "cat-clicker:white-basket:backup:before-v25";
+    if (localStorage.getItem(key) === null) localStorage.setItem(key, JSON.stringify(pair));
+    return;
+  }
   if (!validSavePair(pair)) return;
   if (revision !== 22 && revision !== 23 && localStorage.getItem(migrationBackupKey) === null) {
     localStorage.setItem(migrationBackupKey, JSON.stringify(pair));
@@ -174,14 +179,15 @@ function validPeriodRewards(periods, weekly) {
 }
 
 function validateSaveArchive(raw) {
-  const revision = [22, 23, 24][raw?.version - 1];
+  const revision = [22, 23, 24, 25][raw?.version - 1];
   if (!Number.isInteger(raw?.version) || !revision || raw.format !== saveFormat || raw.progress?.revision !== revision) {
     throw new Error("このゲームに対応したセーブデータではありません。");
   }
-  if (!Number.isSafeInteger(raw.best) || raw.best < 0 ||
+  if (!Number.isSafeInteger(raw.best) || raw.best < 0 || raw.best > 100000 ||
       typeof raw.exportedAt !== "string" || !Number.isFinite(Date.parse(raw.exportedAt))) {
     throw new Error("ハイスコアまたは保存日時が不正です。");
   }
+  validateDataShape(raw);
   const progress = normalizeProgress(raw.progress, revision);
   const level = levelInfo(progress.xp).level;
   if (level !== raw.level || progress.timedPlays > progress.plays ||
@@ -193,14 +199,18 @@ function validateSaveArchive(raw) {
   return { best: raw.best, level, exportedAt: raw.exportedAt, progress: migrateProgress(progress) };
 }
 
-function restoreSaveArchive(raw) {
+function restoreSaveArchive(raw, expectedCounter) {
   const incoming = validateSaveArchive(raw);
   return withProgressLock(() => {
+    if (expectedCounter !== undefined && readProgress().saveCounter !== expectedCounter) throw saveConflict();
     let restoreSnapshot;
     if (unsavedRounds.length) {
       const pending = pendingRoundResult();
       restoreSnapshot = { best: String(pending.best), progress: JSON.stringify(normalizeProgress(pending.next)) };
     }
+    if (typeof sessionConflict === "function" && sessionConflict()) throw saveConflict();
+    incoming.progress.saveCounter = readProgress().saveCounter;
+    incoming.progress.saveEpoch = crypto.randomUUID();
     persistProgress(incoming.progress, incoming.best, { restore: true, restoreSnapshot });
     unsavedRounds = [];
     savedProgress = incoming.progress;

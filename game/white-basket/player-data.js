@@ -105,6 +105,12 @@ function advancePeriod(period, goals, round, rewards) {
 function awardPeriodicRewards(progress, round) {
   const rewards = [];
   const day = round.day;
+  const checked = new Date().toISOString();
+  // Retain every claimed period. Backward clock changes never reopen a paid date.
+  if (progress.lastCheckedAt && checked < progress.lastCheckedAt && progress.lastRewardDay &&
+      day < shiftPlayDay(progress.lastRewardDay, -2) && !progress.daily[day]) return rewards;
+  progress.lastCheckedAt = progress.lastCheckedAt && progress.lastCheckedAt > checked ? progress.lastCheckedAt : checked;
+  progress.lastRewardDay = progress.lastRewardDay > day ? progress.lastRewardDay : day;
   const week = weekStart(day);
   const copy = (period) => period
     ? { ...period, counts: { ...period.counts }, claimed: [...period.claimed] }

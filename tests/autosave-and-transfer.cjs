@@ -6,7 +6,7 @@ const vm = require("node:vm");
 const storage = new Map();
 let failure = () => false;
 const files = ["stages.js","fish-data.js","achievements.js","player-data.js","transfer-code.js",
-  "save-history.js","save-data.js","progress.js"];
+  "validation.js","save-history.js","save-data.js","progress.js"];
 function engine(seed = storage) {
   const context = vm.createContext({ assert, TextEncoder, TextDecoder, btoa, atob, navigator: { locks: { request: (_key, action) => Promise.resolve().then(action) } },
     Path2D: class {}, console, crypto,

@@ -35,14 +35,16 @@ function readSaveHistory() {
 function validSavePair(pair) {
   if (!pair || (pair.best !== null && typeof pair.best !== "string") ||
       (pair.progress !== null && typeof pair.progress !== "string")) return false;
-  if (pair.best !== null && (!/^\d+$/.test(pair.best) || !Number.isSafeInteger(Number(pair.best)))) return false;
+  if (pair.best !== null && (!/^\d+$/.test(pair.best) || !Number.isSafeInteger(Number(pair.best)) || Number(pair.best) > 100000)) return false;
   if (pair.progress === null) return true;
+  if (pair.progress.length > maxSaveBytes) return false;
   try {
     const raw = JSON.parse(pair.progress);
     if (!raw || typeof raw !== "object" || Array.isArray(raw) ||
-        (raw.revision !== undefined && ![22, 23, 24].includes(raw.revision))) return false;
-    if (raw.revision === 24) {
-      const normalized = normalizeProgress(raw);
+        (raw.revision !== undefined && ![22, 23, 24, 25].includes(raw.revision))) return false;
+    validateDataShape(raw);
+    if (raw.revision >= 24) {
+      const normalized = normalizeProgress(raw, raw.revision);
       return equivalentData(raw, normalized) && validPeriodRewards(normalized.daily, false) &&
         validPeriodRewards(normalized.weekly, true) && normalized.timedPlays <= normalized.plays &&
         normalized.playMs >= normalized.timedPlays * 30000 && normalized.playMs <= normalized.timedPlays * 35000;
@@ -102,6 +104,14 @@ function persistSavePair(after, { restore = false, recovery = false, restoreSnap
   if (source.damaged && !restore) throw new Error("正常なセーブを確認できません。");
   archiveLegacySave();
   const before = source.damaged ? rawSavePair() : source.pair;
+  const currentData = source.damaged ? normalizeProgress(null) : migrateProgress(JSON.parse(before.progress));
+  const nextData = after.progress === null ? null : JSON.parse(after.progress);
+  if (nextData && !recovery) {
+    if (nextData.revision !== 25 || nextData.saveCounter !== currentData.saveCounter ||
+        (!restore && nextData.saveEpoch !== currentData.saveEpoch)) throw saveConflict();
+    nextData.saveCounter = currentData.saveCounter + 1;
+    after = { ...after, progress: JSON.stringify(nextData) };
+  }
   if (!validSavePair(after)) throw new Error("保存するデータが不正です。");
 
   if (restore) localStorage.setItem(restoreBackupKey, JSON.stringify(restoreSnapshot ?? before));
@@ -156,7 +166,7 @@ function startSaveProtection() {
     if (source.damaged) { publishSaveStatus("failed", source.history[0]?.at); return; }
     if (source.repair) {
       persistSavePair(source.pair, { recovery: true });
-    } else if (!source.history.length && (source.pair.progress !== null || source.pair.best !== null)) {
+    } else if ((!source.history.length || JSON.parse(source.pair.progress)?.revision !== 25) && (source.pair.progress !== null || source.pair.best !== null)) {
       persistProgress(migrateProgress(JSON.parse(source.pair.progress)), source.pair.best);
     } else if (source.history.length && saveStatus.kind === "idle") {
       publishSaveStatus("idle", source.history[0].at);
@@ -164,6 +174,6 @@ function startSaveProtection() {
   }).catch(reportSaveError);
 }
 
-function reportSaveError() {
-  publishSaveStatus("failed", saveStatus.at);
+function reportSaveError(error) {
+  publishSaveStatus(error?.name === "SaveConflict" ? "conflict" : "failed", saveStatus.at);
 }
