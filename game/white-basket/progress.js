@@ -12,12 +12,14 @@ function isPlayDay(day) {
   return Number.isFinite(date.valueOf()) && date.toISOString().slice(0, 10) === day;
 }
 
-function normalizeSettings(raw) {
-  return { muted: raw?.muted !== false,
+function normalizeSettings(raw, revision = 24) {
+  const normalized = { muted: raw?.muted !== false,
     title: playerTitles.some(({ id }) => id === raw?.title) ? raw.title : "" };
+  if (revision >= 24) normalized.stage = Object.hasOwn(stagesById, raw?.stage) ? raw.stage : defaultSea.id;
+  return normalized;
 }
 
-function normalizeProgress(raw, revision = 23) {
+function normalizeProgress(raw, revision = 24) {
   const data = raw && typeof raw === "object" ? raw : {};
   const progress = Object.fromEntries(countFields.map((key) => [key, safeCount(data[key])]));
   progress.days = Array.isArray(data.days)
@@ -40,15 +42,15 @@ function normalizeProgress(raw, revision = 23) {
   progress.revision = revision;
   progress.daily = normalizePeriods(data.daily, false);
   progress.weekly = normalizePeriods(data.weekly, true);
-  progress.settings = normalizeSettings(data.settings);
-  if (revision === 23) {
+  progress.settings = normalizeSettings(data.settings, revision);
+  if (revision >= 23) {
     progress.stageCatches = {};
     for (const { id } of seaStages) {
       const catches = safeCount(data.stageCatches?.[id]);
       if (catches) progress.stageCatches[id] = catches;
     }
     const seen = Array.isArray(data.seenFish) ? data.seenFish
-      : data.revision !== 23 ? Object.keys(progress.collection) : [];
+      : !(data.revision >= 23) ? Object.keys(progress.collection) : [];
     progress.seenFish = Object.keys(progress.collection).filter((id) => seen.includes(id));
   }
   return progress;
@@ -70,9 +72,7 @@ function readProgress() {
   }
 }
 
-try { archiveLegacySave(); } catch {
-  // Keep reading old data if this browser blocks writes.
-}
+
 let savedProgress = readProgress();
 let unsavedRounds = [];
 
@@ -84,7 +84,8 @@ function localPlayDay(date = new Date()) {
 function newRound(bestScore, date = new Date(), stageId = defaultSea.id) {
   return { catches: 0, gold: 0, maxCombo: 0, peakScore: bestScore, collection: {},
     day: localPlayDay(date), playMs: 0, roundScore: 0, finalScore: null, boots: 0,
-    stageId, hiddenAttempted: false, feverFish: 0, committed: false, announced: new Set() };
+    stageId, hiddenAttempted: false, feverFish: 0, committed: false, announced: new Set(),
+    savedCatches: 0, savedGold: 0, savedFish: {}, earlyAchievements: [], earlyDiscoveries: [] };
 }
 
 function levelInfo(totalXP) {
@@ -115,7 +116,7 @@ function recordRoundCatch(round, type, combo, score, now = new Date()) {
   }
 }
 
-function applyRound(base, round, complete) {
+function applyRound(base, round) {
   const next = { ...base, days: [...base.days], achievements: [...base.achievements],
     collection: { ...base.collection }, stageCatches: { ...base.stageCatches } };
   if (round.catches) next.stageCatches[round.stageId] = addCounts(next.stageCatches[round.stageId] ?? 0, round.catches);
@@ -131,20 +132,49 @@ function applyRound(base, round, complete) {
         ? current.firstSeen : entry.firstSeen,
     };
   }
-  if (complete) {
-    next.plays = addCounts(next.plays, 1);
-    next.xp = addCounts(next.xp, roundXP(round));
-    if (round.playMs > 0) {
-      next.playMs = addCounts(next.playMs, round.playMs);
-      next.timedPlays = addCounts(next.timedPlays, 1);
-    }
-    if (!next.days.includes(round.day)) next.days.push(round.day);
-  }
   return next;
 }
 
+function catchDelta(round) {
+  const collection = {};
+  for (const [id, entry] of Object.entries(round.collection)) {
+    const count = entry.count - (round.savedFish[id] ?? 0);
+    if (count) collection[id] = { count, firstSeen: entry.firstSeen };
+  }
+  return { ...round, catches: round.catches - round.savedCatches, gold: round.gold - round.savedGold, collection };
+}
+
+function checkpointRound(round) {
+  if (round.checkpointPending || round.committed) return;
+  round.checkpointPending = true;
+  void withProgressLock(() => {
+    if (round.committed) return;
+    const delta = catchDelta(round);
+    if (!delta.catches) return;
+    const base = readProgress();
+    const next = applyRound(base, delta);
+    const unlocked = eligibleMissions(next);
+    const discoveries = Object.keys(delta.collection).filter((id) => !base.collection[id]);
+    next.achievements.push(...unlocked.map(({ id }) => id));
+    persistProgress(next, undefined, { notify: !unsavedRounds.length });
+    round.savedCatches = round.catches;
+    round.savedGold = round.gold;
+    round.savedFish = Object.fromEntries(Object.entries(round.collection).map(([id, entry]) => [id, entry.count]));
+    round.earlyAchievements.push(...unlocked);
+    round.earlyDiscoveries.push(...discoveries);
+    if (!unsavedRounds.length) savedProgress = next;
+  }).catch(reportSaveError).finally(() => { round.checkpointPending = false; });
+}
+
 function applyCompletedRound(base, round) {
-  const next = applyRound(base, round, true);
+  const next = applyRound(base, catchDelta(round));
+  next.plays = addCounts(next.plays, 1);
+  next.xp = addCounts(next.xp, roundXP(round));
+  if (round.playMs > 0) {
+    next.playMs = addCounts(next.playMs, round.playMs);
+    next.timedPlays = addCounts(next.timedPlays, 1);
+  }
+  if (!next.days.includes(round.day)) next.days.push(round.day);
   const rewards = awardPeriodicRewards(next, round);
   const bonusXP = rewards.reduce((sum, reward) => sum + reward.xp, 0);
   next.xp = addCounts(next.xp, bonusXP);
@@ -160,26 +190,51 @@ function commitRound(round) {
   let base = readProgress();
   for (const pending of unsavedRounds) base = applyCompletedRound(base, pending).next;
   const { next, unlocked, rewards, xp } = applyCompletedRound(base, round);
-  const discoveries = Object.keys(round.collection).filter((id) => !base.collection[id]);
+  const discoveries = [...round.earlyDiscoveries,
+    ...Object.keys(round.collection).filter((id) => !base.collection[id])];
   savedProgress = next;
   const previousBest = Math.max(readStoredBest(), round.previousBest ?? 0);
   const best = Math.max(previousBest, round.finalScore ?? 0,
     ...unsavedRounds.map((pending) => pending.finalScore ?? 0));
   let saved = false;
   try {
-    settleRestore();
-    archiveLegacySave();
-    if (round.finalScore !== null) localStorage.setItem(bestKey, String(best));
-    localStorage.setItem(progressKey, JSON.stringify(next));
+    persistProgress(next, best);
     unsavedRounds = [];
     saved = true;
   } catch {
     unsavedRounds.push(round);
+    reportSaveError();
   }
   return { xp, rewards, best, previousBest, before: levelInfo(base.xp), after: levelInfo(next.xp),
-    unlocked, discoveries, saved };
+    unlocked: [...round.earlyAchievements, ...unlocked], discoveries, saved };
 }
 
 function saveRound(round) {
-  return withProgressLock(() => commitRound(round));
+  return withProgressLock(() => commitRound(round)).catch((error) => {
+    if (!round.committed) {
+      round.committed = true;
+      unsavedRounds.push(round);
+    }
+    throw error;
+  });
+}
+
+function pendingRoundResult() {
+  let next = readProgress();
+  let best = readStoredBest();
+  for (const round of unsavedRounds) {
+    next = applyCompletedRound(next, round).next;
+    best = Math.max(best, round.finalScore ?? 0, round.previousBest ?? 0);
+  }
+  return { next, best };
+}
+
+function retryPendingRounds() {
+  return withProgressLock(() => {
+    if (!unsavedRounds.length) return;
+    const { next, best } = pendingRoundResult();
+    persistProgress(next, best);
+    savedProgress = next;
+    unsavedRounds = [];
+  }).catch(reportSaveError);
 }

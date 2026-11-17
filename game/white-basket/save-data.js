@@ -6,7 +6,7 @@ const stageMigrationBackupKey = "cat-clicker:white-basket:backup:before-v23";
 const restoreBackupKey = "cat-clicker:white-basket:backup:before-restore";
 const restoreJournalKey = "cat-clicker:white-basket:restore-journal";
 const saveFormat = "osakana-catch:white-basket";
-const saveVersion = 2;
+const saveVersion = 3;
 const maxSaveBytes = 2 * 1024 * 1024;
 
 function rawSavePair() {
@@ -32,9 +32,7 @@ function pendingRestore() {
 }
 
 function visibleSavePair() {
-  const current = rawSavePair();
-  const journal = pendingRestore();
-  return journal && !samePair(current, journal.after) ? journal.before : current;
+  return recoverableSave().pair;
 }
 
 function writeStoredValue(key, value) {
@@ -51,23 +49,27 @@ function writeSavePair(target) {
 function settleRestore() {
   const journal = pendingRestore();
   if (!journal) return;
-  if (!samePair(rawSavePair(), journal.after)) writeSavePair(journal.before);
+  if (!saveWasCommitted(journal, rawSavePair())) writeSavePair(journal.before);
   localStorage.removeItem(restoreJournalKey);
 }
 
 function archiveLegacySave() {
-  const pair = visibleSavePair();
+  const pair = rawSavePair();
   if (pair.progress === null && pair.best === null) return;
   let revision;
   try { revision = JSON.parse(pair.progress)?.revision; } catch {
     // Preserve the original even if its JSON cannot be decoded.
   }
-  if (revision === 23) return;
-  if (revision !== 22 && localStorage.getItem(migrationBackupKey) === null) {
+  if (revision === 24) return;
+  if (!validSavePair(pair)) return;
+  if (revision !== 22 && revision !== 23 && localStorage.getItem(migrationBackupKey) === null) {
     localStorage.setItem(migrationBackupKey, JSON.stringify(pair));
   }
-  if (localStorage.getItem(stageMigrationBackupKey) === null) {
+  if (revision !== 23 && localStorage.getItem(stageMigrationBackupKey) === null) {
     localStorage.setItem(stageMigrationBackupKey, JSON.stringify(pair));
+  }
+  if (localStorage.getItem(safetyMigrationKey) === null) {
+    localStorage.setItem(safetyMigrationKey, JSON.stringify(pair));
   }
 }
 
@@ -78,10 +80,13 @@ function markFishSeen(id) {
     if (!progress.collection[id] || progress.seenFish.includes(id)) return false;
     archiveLegacySave();
     progress.seenFish.push(id);
-    localStorage.setItem(progressKey, JSON.stringify(progress));
+    persistProgress(progress, undefined, { notify: !unsavedRounds.length });
     if (unsavedRounds.length) savedProgress.seenFish = progress.seenFish;
     else savedProgress = progress;
     return true;
+  }).catch((error) => {
+    reportSaveError();
+    throw error;
   });
 }
 
@@ -89,8 +94,31 @@ function readStoredBest() {
   try { return safeCount(Number(visibleSavePair().best)); } catch { return 0; }
 }
 
+function withDatabaseLock(action) {
+  if (typeof indexedDB === "undefined") {
+    return Promise.reject(new Error("同時保存を保護できないため保存を中止しました。"));
+  }
+  return new Promise((resolve, reject) => {
+    const open = indexedDB.open("osakana-catch-save-lock", 1);
+    open.onupgradeneeded = () => open.result.createObjectStore("lock");
+    open.onerror = () => reject(open.error);
+    open.onblocked = () => reject(new Error("保存用のロックを開けません。"));
+    open.onsuccess = () => {
+      const database = open.result;
+      const transaction = database.transaction("lock", "readwrite");
+      let result;
+      let failure;
+      transaction.oncomplete = () => { database.close(); resolve(result); };
+      transaction.onabort = () => { database.close(); reject(failure ?? transaction.error); };
+      transaction.objectStore("lock").get("writer").onsuccess = () => {
+        try { result = action(); } catch (error) { failure = error; transaction.abort(); }
+      };
+    };
+  });
+}
+
 async function withProgressLock(action) {
-  if (!navigator.locks) return action();
+  if (!navigator.locks) return withDatabaseLock(action);
   let started = false;
   try {
     return await navigator.locks.request(progressKey, () => {
@@ -99,7 +127,7 @@ async function withProgressLock(action) {
     });
   } catch (error) {
     if (started) throw error;
-    return action();
+    return withDatabaseLock(action);
   }
 }
 
@@ -109,10 +137,13 @@ function savePlayerSettings(update) {
     archiveLegacySave();
     const next = readProgress();
     next.settings = normalizeSettings({ ...next.settings, ...update });
-    localStorage.setItem(progressKey, JSON.stringify(next));
+    persistProgress(next, undefined, { notify: !unsavedRounds.length });
     if (unsavedRounds.length) savedProgress.settings = next.settings;
     else savedProgress = next;
     return next.settings;
+  }).catch((error) => {
+    reportSaveError();
+    throw error;
   });
 }
 
@@ -143,8 +174,8 @@ function validPeriodRewards(periods, weekly) {
 }
 
 function validateSaveArchive(raw) {
-  const revision = raw?.version === 1 ? 22 : raw?.version === saveVersion ? 23 : null;
-  if (!revision || raw.format !== saveFormat || raw.progress?.revision !== revision) {
+  const revision = [22, 23, 24][raw?.version - 1];
+  if (!Number.isInteger(raw?.version) || !revision || raw.format !== saveFormat || raw.progress?.revision !== revision) {
     throw new Error("このゲームに対応したセーブデータではありません。");
   }
   if (!Number.isSafeInteger(raw.best) || raw.best < 0 ||
@@ -159,35 +190,23 @@ function validateSaveArchive(raw) {
       !validPeriodRewards(progress.daily, false) || !validPeriodRewards(progress.weekly, true)) {
     throw new Error("セーブデータの項目または値が不正です。");
   }
-  return { best: raw.best, level, progress: migrateProgress(progress) };
+  return { best: raw.best, level, exportedAt: raw.exportedAt, progress: migrateProgress(progress) };
 }
 
 function restoreSaveArchive(raw) {
   const incoming = validateSaveArchive(raw);
   return withProgressLock(() => {
-    settleRestore();
-    archiveLegacySave();
-    const before = rawSavePair();
-    const after = { best: String(incoming.best), progress: JSON.stringify(incoming.progress) };
-    // Store recovery data first. The progress write is the commit point.
-    localStorage.setItem(restoreBackupKey, JSON.stringify(before));
-    localStorage.setItem(restoreJournalKey, JSON.stringify({ before, after }));
-    try {
-      writeSavePair(after);
-    } catch (error) {
-      try {
-        writeSavePair(before);
-        localStorage.removeItem(restoreJournalKey);
-      } catch {
-        // Reads keep using the previous pair until storage accepts rollback.
-      }
-      throw error;
+    let restoreSnapshot;
+    if (unsavedRounds.length) {
+      const pending = pendingRoundResult();
+      restoreSnapshot = { best: String(pending.best), progress: JSON.stringify(normalizeProgress(pending.next)) };
     }
-    try { settleRestore(); } catch {
-      // Both keys are committed, so the journal can be cleared on the next write.
-    }
+    persistProgress(incoming.progress, incoming.best, { restore: true, restoreSnapshot });
     unsavedRounds = [];
     savedProgress = incoming.progress;
     return incoming;
+  }).catch((error) => {
+    reportSaveError();
+    throw error;
   });
 }

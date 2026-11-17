@@ -28,7 +28,7 @@ function stageOption(value, label, disabled = false) {
 }
 
 function refreshStageChoice(level) {
-  const selected = availableSea(stageChoice.value, level);
+  const selected = availableSea(stageChoice.value || savedProgress.settings.stage, level);
   stageChoice.replaceChildren(...seaStages.map((stage) => stageOption(stage.id,
     stage.level <= level ? stage.label : stage.label + "（Lv. " + stage.level + "）", stage.level > level)));
   stageChoice.value = selected.id;
@@ -251,7 +251,7 @@ for (const [index, name] of missionTabs.entries()) {
 }
 
 window.addEventListener("storage", (event) => {
-  if (event.key !== progressKey || unsavedRounds.length) return;
+  if (![progressKey, saveHistoryKey].includes(event.key) || unsavedRounds.length) return;
   refreshTitleProgress();
   if (progressDialog.open && !progressElement("mission-tabs").hidden) renderMissionTab(activeMissionTab);
   else if (progressDialog.open && fishDetail.hidden) renderFishList();
@@ -259,15 +259,16 @@ window.addEventListener("storage", (event) => {
 
 let toastTimer;
 function announceMissions(round) {
-  const next = applyRound(savedProgress, round, false);
+  const next = applyRound(savedProgress, catchDelta(round));
   const newlyEligible = eligibleMissions(next).filter(({ id }) => !round.announced.has(id));
-  if (!newlyEligible.length) return;
+  if (!newlyEligible.length) return false;
   newlyEligible.forEach(({ id }) => round.announced.add(id));
   const toast = progressElement("mission-toast");
   toast.textContent = "ミッション達成！ " + newlyEligible.map(({ name }) => name).join("・");
   toast.hidden = false;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { toast.hidden = true; }, 2700);
+  return true;
 }
 
 function renderRoundSummary(summary) {

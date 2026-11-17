@@ -5,14 +5,14 @@ const path = require("node:path");
 const vm = require("node:vm");
 const storage = new Map();
 const context = vm.createContext({
-  assert, console, navigator: {}, Path2D: class {},
+  assert, console, navigator: { locks: { request: (_key, action) => Promise.resolve().then(action) } }, Path2D: class {}, TextEncoder, TextDecoder, btoa, atob,
   localStorage: {
     getItem: (key) => storage.get(key) ?? null,
     setItem: (key, value) => storage.set(key, String(value)),
     removeItem: (key) => storage.delete(key),
   },
 });
-for (const name of ["stages.js", "fish-data.js", "achievements.js", "player-data.js", "save-data.js", "progress.js"]) {
+for (const name of ["stages.js", "fish-data.js", "achievements.js", "player-data.js", "transfer-code.js", "save-history.js", "save-data.js", "progress.js"]) {
   vm.runInContext(fs.readFileSync(path.join(__dirname, "..", "game/white-basket", name), "utf8"),
     context, { filename: name });
 }

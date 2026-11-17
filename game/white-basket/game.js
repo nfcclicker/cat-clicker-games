@@ -96,6 +96,12 @@ updateSoundButton();
 function applyRestoredSettings(restored) {
   best = restored.best;
   muted = restored.progress.settings.muted;
+  stageChoice.value = availableSea(restored.progress.settings.stage, restored.level ??
+    levelInfo(restored.progress.xp).level).id;
+  if (state === "title") {
+    sea = availableSea(stageChoice.value, levelInfo(restored.progress.xp).level);
+    draw(performance.now());
+  }
   byId("best").textContent = best;
   updateSoundButton();
 }
@@ -105,12 +111,13 @@ byId("sound").addEventListener("click", () => {
   updateSoundButton();
   if (!muted) void enableAudio();
   void savePlayerSettings({ muted }).catch(() => {
+    reportSaveError();
     // Sound remains usable in this session if storage is unavailable.
   });
 });
 
 window.addEventListener("storage", (event) => {
-  if (event.key !== progressKey && event.key !== bestKey && event.key !== restoreJournalKey) return;
+  if (![progressKey, bestKey, restoreJournalKey, saveHistoryKey].includes(event.key)) return;
   if (state !== "title" || unsavedRounds.length) return;
   const progress = readProgress();
   applyRestoredSettings({ best: readStoredBest(), progress });
@@ -470,7 +477,8 @@ function catchItem(object, now) {
     }
     score += value;
     recordRoundCatch(round, type, combo, score);
-    announceMissions(round);
+    const unlocked = announceMissions(round);
+    if (isNew || unlocked) checkpointRound(round);
 
     if (rare) {
       const legendary = rare.tier === 5;
@@ -562,6 +570,7 @@ function finish() {
     renderRoundSummary(summary);
   }).catch(() => {
     byId("save-warning").hidden = false;
+    reportSaveError();
   }).finally(() => {
     byId("replay").disabled = false;
     byId("return-title").disabled = false;
@@ -666,6 +675,7 @@ stageChoice.addEventListener("change", () => {
   if (state !== "title") return;
   sea = availableSea(stageChoice.value, levelInfo(savedProgress.xp).level);
   draw(performance.now());
+  void savePlayerSettings({ stage: sea.id }).catch(reportSaveError);
 });
 
 byId("start").addEventListener("click", start);
@@ -702,7 +712,15 @@ window.addEventListener("keydown", (event) => {
 window.addEventListener("keyup", (event) => keys.delete(event.key));
 window.addEventListener("blur", () => keys.clear());
 
+sea = availableSea(stageChoice.value, levelInfo(savedProgress.xp).level);
 resize();
+void startSaveProtection();
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "hidden") return;
+  if (state === "playing") checkpointRound(round);
+  if (unsavedRounds.length) void retryPendingRounds();
+  else if (state !== "playing") void startSaveProtection();
+});
 new ResizeObserver(resize).observe(field);
 
 if (window.isSecureContext && "serviceWorker" in navigator && location.protocol !== "file:") {

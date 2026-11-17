@@ -11,6 +11,8 @@
   <script src="./fish-data.js" defer></script>
   <script src="./achievements.js" defer></script>
   <script src="./player-data.js" defer></script>
+  <script src="./transfer-code.js" defer></script>
+  <script src="./save-history.js" defer></script>
   <script src="./save-data.js" defer></script>
   <script src="./progress.js" defer></script>
   <script src="./collection.js" defer></script>
@@ -97,7 +99,7 @@
       </nav>
       <div class="profile-links">
         <button id="show-records" type="button">プレイきろく</button>
-        <button id="show-settings" type="button">設定</button>
+        <button id="show-settings" type="button">セーブ・引き継ぎ</button>
       </div>
     </section>
     <dialog id="player-dialog" class="progress-dialog" aria-labelledby="player-dialog-title">
@@ -113,10 +115,29 @@
         <ul id="title-list" class="title-list"></ul>
       </div>
       <div id="player-settings" hidden>
-        <p>バックアップをこの端末に保存し、別の端末でも復元できます。</p>
-        <button id="export-save" class="secondary save-action" type="button">セーブデータをバックアップ</button>
-        <label class="save-file-label" for="import-save">セーブデータを復元</label>
-        <input id="import-save" type="file" accept=".json,application/json">
+        <p class="save-intro">ゲームの進み具合は自動で保存されます。スマホを変えるときは、引き継ぎコードを保存してね！</p>
+        <dl id="save-overview" class="stats-list"></dl>
+        <p id="backup-reminder" class="period-note" hidden>進み具合が増えました。引き継ぎコードを保存しておくと安心です。</p>
+        <div class="save-buttons">
+          <button id="copy-code" class="secondary" type="button">引き継ぎコードをコピー</button>
+          <button id="share-code" class="secondary" type="button">引き継ぎコードを共有</button>
+          <button id="save-code-file" class="secondary" type="button">ファイルとして保存</button>
+        </div>
+        <label id="generated-code-label" class="save-file-label" for="generated-code" hidden>作成したコード</label>
+        <textarea id="generated-code" class="code-input" rows="3" readonly hidden></textarea>
+        <details id="transfer-restore" class="save-details">
+          <summary>引き継ぎコードから復元</summary>
+          <label class="save-file-label" for="import-code">保存したコードを貼り付け</label>
+          <textarea id="import-code" class="code-input" rows="3" spellcheck="false" autocapitalize="off"></textarea>
+          <button id="check-code" class="secondary save-action" type="button">内容を確認</button>
+        </details>
+        <details class="save-details">
+          <summary>詳細設定・JSONファイル</summary>
+          <button id="export-save" class="secondary save-action" type="button">セーブデータをバックアップ</button>
+          <label class="save-file-label" for="import-save">ファイルから復元</label>
+          <input id="import-save" type="file" accept=".json,.txt,application/json,text/plain">
+        </details>
+        <p class="save-caveat">ブラウザのサイトデータを削除すると、端末内の自動バックアップも消えます。引き継ぎコードやファイルは別の場所に保管してください。</p>
         <section id="restore-preview" class="restore-preview" aria-labelledby="restore-title" hidden>
           <h3 id="restore-title">復元内容を確認</h3>
           <dl id="restore-summaries"></dl>
@@ -151,6 +172,7 @@
         <div id="fish-detail-body"></div>
       </section>
     </dialog>
+    <p id="save-indicator" class="save-indicator" role="status" hidden></p>
     <p id="instruction" class="instruction" hidden>左右になぞる・マウスを動かす・← → キー</p>
     <noscript>遊ぶにはブラウザの JavaScript を有効にしてください。</noscript>
   </main>
