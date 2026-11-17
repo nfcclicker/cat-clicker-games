@@ -19,13 +19,13 @@ function normalizeSettings(raw, revision = 24) {
   return normalized;
 }
 
-function normalizeProgress(raw, revision = 25) {
+function normalizeProgress(raw, revision = 26) {
   const data = raw && typeof raw === "object" ? raw : {};
   const progress = Object.fromEntries(countFields.map((key) => [key, safeCount(data[key])]));
   progress.days = Array.isArray(data.days)
     ? [...new Set(data.days.filter(isPlayDay))]
     : [];
-  progress.achievements = (revision === 22 ? originalMissions : missions).filter(({ id }) =>
+  progress.achievements = (revision === 22 ? originalMissions : revision < 26 ? [...originalMissions, ...stageMissions] : missions).filter(({ id }) =>
     Array.isArray(data.achievements) && data.achievements.includes(id)).map(({ id }) => id);
   progress.collection = {};
   for (const { id } of (revision === 22 ? originalRareFish : rareFish)) {
@@ -71,6 +71,10 @@ function normalizeProgress(raw, revision = 25) {
       typeof id === "string" && /^[a-zA-Z0-9-]{1,80}$/.test(id)))].slice(-512) : [];
     progress.lastRewardDay = isPlayDay(data.lastRewardDay) ? data.lastRewardDay : "";
     progress.lastCheckedAt = typeof data.lastCheckedAt === "string" && validTimestamp(data.lastCheckedAt) ? data.lastCheckedAt : null;
+  }
+  if (revision >= 26) {
+    progress.stageRecords = normalizeStageRecords(data.stageRecords);
+    progress.aquarium = normalizeAquarium(data.aquarium, progress.collection, progress.xp, progress.stageRecords);
   }
   return progress;
 }
@@ -211,12 +215,13 @@ function applyCompletedRound(base, round) {
     next.timedPlays = addCounts(next.timedPlays, 1);
   }
   if (!next.days.includes(round.day)) next.days.push(round.day);
+  const aquariumUnlock = recordStageClear(next, round);
   const rewards = awardPeriodicRewards(next, round);
   const bonusXP = rewards.reduce((sum, reward) => sum + reward.xp, 0);
   next.xp = addCounts(next.xp, bonusXP);
   const unlocked = eligibleMissions(next);
   next.achievements.push(...unlocked.map(({ id }) => id));
-  return { next, unlocked, rewards, xp: roundXP(round) + bonusXP };
+  return { next, unlocked, rewards, aquariumUnlock, xp: roundXP(round) + bonusXP };
 }
 
 function commitRound(round) {
@@ -226,7 +231,7 @@ function commitRound(round) {
   // A single write covers all counters. Retry unsaved rounds on the next completion.
   let base = readProgress();
   for (const pending of unsavedRounds) { assertRoundWritable(pending); base = applyCompletedRound(base, pending).next; }
-  const { next, unlocked, rewards, xp } = applyCompletedRound(base, round);
+  const { next, unlocked, rewards, xp, aquariumUnlock } = applyCompletedRound(base, round);
   const discoveries = [...round.earlyDiscoveries,
     ...Object.keys(round.collection).filter((id) => !base.collection[id])];
   savedProgress = next;
@@ -242,7 +247,7 @@ function commitRound(round) {
     unsavedRounds.push(round);
     reportSaveError();
   }
-  return { xp, rewards, best, previousBest, before: levelInfo(base.xp), after: levelInfo(next.xp),
+  return { xp, rewards, best, previousBest, aquariumUnlock, before: levelInfo(base.xp), after: levelInfo(next.xp),
     unlocked: [...round.earlyAchievements, ...unlocked], discoveries, saved };
 }
 

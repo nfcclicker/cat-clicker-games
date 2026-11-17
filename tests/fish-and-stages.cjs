@@ -12,7 +12,7 @@ const context = vm.createContext({
     removeItem: (key) => storage.delete(key),
   },
 });
-for (const name of ["stages.js", "fish-data.js", "achievements.js", "player-data.js", "transfer-code.js", "validation.js", "save-history.js", "save-data.js", "progress.js"]) {
+for (const name of ["stages.js", "fish-data.js", "aquarium-data.js", "achievements.js", "player-data.js", "transfer-code.js", "validation.js", "save-history.js", "save-data.js", "progress.js"]) {
   vm.runInContext(fs.readFileSync(path.join(__dirname, "..", "game/white-basket", name), "utf8"),
     context, { filename: name });
 }
@@ -74,7 +74,7 @@ for (const id of ["starlit","phantom"]) {
 const blank = normalizeProgress();
 const originalOnly = { ...blank, collection: Object.fromEntries(originalRareFish.map(({ id }) => [id,{count:1}])) };
 const mostlyNew = { ...blank, collection: Object.fromEntries(rareFish.slice(6, 18).map(({ id }) => [id,{count:1}])) };
-assert.equal(missions.length, 17);
+assert.equal(missions.length, 22);
 assert.equal(eligibleMissions(originalOnly).some(({id}) => id === "scholar"), true);
 assert.equal(eligibleMissions(mostlyNew).some(({id}) => id === "scholar"), false);
 const all = { ...blank, xp:28050, collection: Object.fromEntries(rareFish.map(({ id }) => [id,{count:1}])),

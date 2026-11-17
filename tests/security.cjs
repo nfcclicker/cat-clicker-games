@@ -8,7 +8,7 @@ const context = vm.createContext({ console, assert, crypto, TextEncoder, TextDec
   navigator: { locks: { request: (_key, action) => Promise.resolve().then(action) } }, Path2D: class {},
   localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key,value) => storage.set(key,String(value)),
     removeItem: key => storage.delete(key) } });
-for (const file of ["stages.js","fish-data.js","achievements.js","player-data.js","transfer-code.js",
+for (const file of ["stages.js","fish-data.js","aquarium-data.js","achievements.js","player-data.js","transfer-code.js",
   "validation.js","save-history.js","save-data.js","progress.js"]) {
   vm.runInContext(fs.readFileSync(path.join(__dirname,"..","game/white-basket",file),"utf8"),context);
 }

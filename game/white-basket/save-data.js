@@ -6,7 +6,7 @@ const stageMigrationBackupKey = "cat-clicker:white-basket:backup:before-v23";
 const restoreBackupKey = "cat-clicker:white-basket:backup:before-restore";
 const restoreJournalKey = "cat-clicker:white-basket:restore-journal";
 const saveFormat = "osakana-catch:white-basket";
-const saveVersion = 4;
+const saveVersion = 5;
 const maxSaveBytes = 2 * 1024 * 1024;
 
 function rawSavePair() {
@@ -60,7 +60,12 @@ function archiveLegacySave() {
   try { revision = JSON.parse(pair.progress)?.revision; } catch {
     // Preserve the original even if its JSON cannot be decoded.
   }
-  if (revision === 25) return;
+  if (revision === 26) return;
+  if (revision === 25) {
+    const key = "cat-clicker:white-basket:backup:before-v26";
+    if (localStorage.getItem(key) === null && validSavePair(pair)) localStorage.setItem(key, JSON.stringify(pair));
+    return;
+  }
   if (revision === 24) {
     const key = "cat-clicker:white-basket:backup:before-v25";
     if (localStorage.getItem(key) === null) localStorage.setItem(key, JSON.stringify(pair));
@@ -179,7 +184,7 @@ function validPeriodRewards(periods, weekly) {
 }
 
 function validateSaveArchive(raw) {
-  const revision = [22, 23, 24, 25][raw?.version - 1];
+  const revision = [22, 23, 24, 25, 26][raw?.version - 1];
   if (!Number.isInteger(raw?.version) || !revision || raw.format !== saveFormat || raw.progress?.revision !== revision) {
     throw new Error("このゲームに対応したセーブデータではありません。");
   }

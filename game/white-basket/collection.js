@@ -272,6 +272,10 @@ function announceMissions(round) {
 }
 
 function renderRoundSummary(summary) {
+  progressElement("aquarium-unlock").hidden = !summary.aquariumUnlock || !summary.saved;
+  if (summary.aquariumUnlock && summary.saved) {
+    progressElement("aquarium-unlock").textContent = "水族館の新しい背景をゲット！ " + stagesById[summary.aquariumUnlock].label;
+  }
   progressElement("earned-xp").textContent = "+" + summary.xp + " XP";
   progressElement("round-rewards-row").hidden = !summary.rewards.length;
   progressElement("round-rewards").textContent = summary.rewards

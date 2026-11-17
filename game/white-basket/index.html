@@ -11,6 +11,7 @@
   <script src="./cat-face.js" defer></script>
   <script src="./stages.js" defer></script>
   <script src="./fish-data.js" defer></script>
+  <script src="./aquarium-data.js" defer></script>
   <script src="./achievements.js" defer></script>
   <script src="./player-data.js" defer></script>
   <script src="./transfer-code.js" defer></script>
@@ -24,6 +25,7 @@
   <script src="./access.js" defer></script>
   <script src="./game.js" defer></script>
   <script src="./session.js" defer></script>
+  <script src="./aquarium.js" defer></script>
 </head>
 <body>
   <section id="access-guide" class="portal" hidden>
@@ -79,6 +81,7 @@
             <div><dt><span id="discovery-badge" class="new-badge" hidden>NEW</span> 新しく発見した魚</dt><dd id="new-fish">—</dd></div>
             <div><dt>解除した実績</dt><dd id="new-missions">—</dd></div>
           </dl>
+          <p id="aquarium-unlock" class="level-up" hidden>水族館の新しい背景をゲット！</p>
           <p id="level-up" class="level-up" role="status" hidden></p>
           <p id="save-warning" class="save-warning" role="status" hidden>進捗を保存できませんでした。このページを開いたまま次のプレイを終えると再試行します。</p>
           <button id="replay" class="primary" type="button">もういっかい <span aria-hidden="true">↻</span></button>
@@ -115,11 +118,37 @@
         <button id="show-missions" class="secondary" type="button">ミッション</button>
         <button id="show-collection" class="secondary" type="button">おさかな図鑑</button>
       </nav>
+      <button id="show-aquarium" class="secondary aquarium-link" type="button">マイ水族館</button>
       <div class="profile-links">
         <button id="show-records" type="button">プレイきろく</button>
         <button id="show-settings" type="button">セーブ・引き継ぎ</button>
       </div>
     </section>
+    <dialog id="aquarium-dialog" class="aquarium-dialog" aria-labelledby="aquarium-title">
+      <header class="aquarium-header">
+        <button id="close-aquarium" class="secondary" type="button" autofocus>← 戻る</button>
+        <div><h2 id="aquarium-title">マイ水族館</h2><p id="aquarium-count"></p></div>
+        <button id="view-aquarium" class="quiet-button" type="button" aria-pressed="false">鑑賞</button>
+      </header>
+      <div id="aquarium-tank" class="aquarium-tank">
+        <canvas id="aquarium-canvas" aria-label="魚が泳ぐ水槽。魚をタップして遊べます"></canvas>
+        <p id="aquarium-background-name"></p>
+      </div>
+      <p class="aquarium-tip">魚をタップでごあいさつ。空いているところをタップで鑑賞モード。</p>
+      <nav class="aquarium-controls" aria-label="水族館の操作">
+        <button id="choose-aquarium-fish" class="secondary" type="button">魚をえらぶ</button>
+        <button id="feed-aquarium" class="secondary" type="button">エサをあげる</button>
+        <button id="choose-aquarium-background" class="secondary" type="button">背景変更</button>
+        <button id="photo-aquarium" class="secondary" type="button">写真を撮る</button>
+      </nav>
+      <section id="aquarium-fish-panel" class="aquarium-panel" hidden>
+        <h3>魚をえらぶ</h3><ul id="aquarium-fish-list"></ul>
+      </section>
+      <section id="aquarium-background-panel" class="aquarium-panel" hidden>
+        <h3>背景変更</h3><ul id="aquarium-background-list"></ul>
+      </section>
+      <p id="aquarium-status" class="aquarium-status" role="status"></p>
+    </dialog>
     <dialog id="player-dialog" class="progress-dialog" aria-labelledby="player-dialog-title">
       <header>
         <button id="close-player" class="secondary" type="button" autofocus>← 戻る</button>

@@ -23,7 +23,14 @@ const stageMissions = [
   ["scholar24", "新おさかな博士", "図鑑の24種類をコンプリート", 24, (p) => Object.keys(p.collection).length],
 ].map(([id, name, description, target, value]) => ({ id, name, description, target, value }));
 
-const missions = [...originalMissions, ...stageMissions];
+const aquariumMissions = [
+  ["firstAquarium", "はじめての水族館", "魚を初めて展示する", 1, p => p.aquarium?.peak ?? 0],
+  ["livelyTank", "にぎやかな水槽", "10匹を同時展示する", 10, p => p.aquarium?.peak ?? 0],
+  ["fishCaretaker", "おさかなのお世話係", "エサやり10回を完了する", 10, p => p.aquarium?.feeds ?? 0],
+  ["aquariumMaster", "水族館マスター", "30匹を同時展示する", 30, p => p.aquarium?.peak ?? 0],
+  ["seaCollector", "海のコレクター", "すべての水族館背景を解放する", 6, p => p.aquarium?.backgrounds.length ?? 1],
+].map(([id, name, description, target, value]) => ({ id, name, description, target, value }));
+const missions = [...originalMissions, ...stageMissions, ...aquariumMissions];
 
 function eligibleMissions(progress) {
   return missions.filter((mission) => mission.value(progress) >= mission.target &&

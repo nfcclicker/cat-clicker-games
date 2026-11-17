@@ -558,6 +558,7 @@ function finish() {
   byId("level-up").hidden = true;
   byId("save-warning").hidden = true;
   byId("round-rewards-row").hidden = true;
+  byId("aquarium-unlock").hidden = true;
   round.day = localPlayDay();
   round.playMs = duration + powers.extension;
   round.finalScore = score;

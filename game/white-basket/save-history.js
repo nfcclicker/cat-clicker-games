@@ -41,7 +41,7 @@ function validSavePair(pair) {
   try {
     const raw = JSON.parse(pair.progress);
     if (!raw || typeof raw !== "object" || Array.isArray(raw) ||
-        (raw.revision !== undefined && ![22, 23, 24, 25].includes(raw.revision))) return false;
+        (raw.revision !== undefined && ![22, 23, 24, 25, 26].includes(raw.revision))) return false;
     validateDataShape(raw);
     if (raw.revision >= 24) {
       const normalized = normalizeProgress(raw, raw.revision);
@@ -107,7 +107,7 @@ function persistSavePair(after, { restore = false, recovery = false, restoreSnap
   const currentData = source.damaged ? normalizeProgress(null) : migrateProgress(JSON.parse(before.progress));
   const nextData = after.progress === null ? null : JSON.parse(after.progress);
   if (nextData && !recovery) {
-    if (nextData.revision !== 25 || nextData.saveCounter !== currentData.saveCounter ||
+    if (nextData.revision !== 26 || nextData.saveCounter !== currentData.saveCounter ||
         (!restore && nextData.saveEpoch !== currentData.saveEpoch)) throw saveConflict();
     nextData.saveCounter = currentData.saveCounter + 1;
     after = { ...after, progress: JSON.stringify(nextData) };
@@ -166,7 +166,7 @@ function startSaveProtection() {
     if (source.damaged) { publishSaveStatus("failed", source.history[0]?.at); return; }
     if (source.repair) {
       persistSavePair(source.pair, { recovery: true });
-    } else if ((!source.history.length || JSON.parse(source.pair.progress)?.revision !== 25) && (source.pair.progress !== null || source.pair.best !== null)) {
+    } else if ((!source.history.length || JSON.parse(source.pair.progress)?.revision !== 26) && (source.pair.progress !== null || source.pair.best !== null)) {
       persistProgress(migrateProgress(JSON.parse(source.pair.progress)), source.pair.best);
     } else if (source.history.length && saveStatus.kind === "idle") {
       publishSaveStatus("idle", source.history[0].at);
