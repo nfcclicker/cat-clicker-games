@@ -107,6 +107,7 @@ function renderRoundSummary(summary) {
   levelUp.textContent = "レベルアップ！ Lv. " + summary.before.level + " → " + summary.after.level;
   const newFish = summary.discoveries.map((id) => rareById[id].name);
   progressElement("new-fish").textContent = newFish.length ? newFish.join("・") : "なし";
+  progressElement("discovery-badge").hidden = !newFish.length;
   progressElement("new-missions").textContent = summary.unlocked.length
     ? summary.unlocked.map(({ name }) => name).join("・") : "なし";
   progressElement("save-warning").hidden = summary.saved;

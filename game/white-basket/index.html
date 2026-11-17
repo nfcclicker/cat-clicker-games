@@ -11,6 +11,7 @@
   <script src="./achievements.js" defer></script>
   <script src="./progress.js" defer></script>
   <script src="./collection.js" defer></script>
+  <script src="./power-ups.js" defer></script>
   <script src="./game.js" defer></script>
 </head>
 <body>
@@ -30,18 +31,26 @@
         <div><span>スコア</span><strong id="score">0</strong></div>
         <div><span>のこり</span><strong id="time">30</strong><small> 秒</small></div>
       </div>
+      <div id="power-hud" class="power-hud" hidden>
+        <strong id="fever-chip" class="power-chip fever-chip" hidden></strong>
+        <span id="magnet-chip" class="power-chip magnet-chip" hidden></span>
+        <span id="guard-chip" class="power-chip guard-chip" hidden></span>
+      </div>
+      <p id="legend-toast" class="legend-toast" role="status" hidden>でんせつの金魚をキャッチ！</p>
       <p id="mission-toast" class="mission-toast" role="status" hidden></p>
       <section id="result" class="result" aria-labelledby="result-title" hidden>
+        <div id="confetti" class="confetti" aria-hidden="true"></div>
         <div class="result-card">
           <h2 id="result-title" tabindex="-1">おしまい！</h2>
           <p class="total">今回のスコア <strong id="final-score">0</strong></p>
+          <p id="record-badge" class="record-badge" hidden>ハイスコア更新！</p>
           <dl>
             <div><dt>ハイスコア</dt><dd id="final-best">0</dd></div>
             <div><dt>キャッチした魚</dt><dd><span id="final-fish">0</span> 匹</dd></div>
           </dl>
           <dl class="round-progress">
             <div><dt>獲得XP</dt><dd id="earned-xp">—</dd></div>
-            <div><dt>新しく発見した魚</dt><dd id="new-fish">—</dd></div>
+            <div><dt><span id="discovery-badge" class="new-badge" hidden>NEW</span> 新しく発見した魚</dt><dd id="new-fish">—</dd></div>
             <div><dt>解除した実績</dt><dd id="new-missions">—</dd></div>
           </dl>
           <p id="level-up" class="level-up" role="status" hidden></p>
@@ -59,6 +68,15 @@
       </div>
       <button id="start" class="primary" type="button">あそぶ <span aria-hidden="true">▶</span></button>
       <p class="best"><span aria-hidden="true">★</span> ハイスコア <strong id="best">0</strong></p>
+      <details class="power-guide">
+        <summary>フィーバーとアイテム</summary>
+        <ul>
+          <li>10コンボごとに5秒間、魚の得点が2倍（1プレイ2回まで）</li>
+          <li>時計　残り時間 +5秒（1プレイ1回まで）</li>
+          <li>磁石　3秒間、近くの魚を引き寄せる</li>
+          <li>星　5秒間、長靴の減点とコンボ切断を防ぐ</li>
+        </ul>
+      </details>
       <div class="profile">
         <div class="progress-row"><strong id="level">Lv. 1</strong><span id="rank"></span><small id="xp-label"></small></div>
         <progress id="xp-bar" aria-label="次のレベルまでの経験値" max="100" value="0"></progress>

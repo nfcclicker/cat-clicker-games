@@ -2,9 +2,9 @@
 
 const base = self.registration.scope;
 const cachePrefix = "cat-clicker-white-basket:" + base + ":";
-const cacheName = cachePrefix + "v3";
+const cacheName = cachePrefix + "v4";
 const url = (name) => new URL(name, base).href;
-const files = ["index.html", "style.css", "cat-face.js", "fish-data.js", "achievements.js", "progress.js", "collection.js", "game.js"].map(url);
+const files = ["index.html", "style.css", "cat-face.js", "fish-data.js", "achievements.js", "progress.js", "collection.js", "power-ups.js", "game.js"].map(url);
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(cacheName).then((cache) => cache.addAll(files.map((file) => new Request(file, { cache: "reload" })))));

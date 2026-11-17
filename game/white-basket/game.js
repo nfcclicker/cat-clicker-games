@@ -19,6 +19,9 @@ let best = 0;
 let fishCount = 0;
 let combo = 0;
 let round;
+let powers = newPowers();
+let rareReaction = null;
+const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 let mood = "calm";
 let moodUntil = 0;
 let startedAt = 0;
@@ -42,6 +45,9 @@ const notes = {
   gold: [523, 659, 784, 1047],
   boot: [262, 175],
   end: [659, 523, 440, 523],
+  fever: [523, 659, 784, 1047, 1319],
+  power: [440, 659, 880],
+  legend: [392, 587, 784, 988, 1175, 1568],
 };
 let audio;
 let volume;
@@ -202,14 +208,43 @@ function item(type, x, y, scale = 1, tilt = 0) {
   ctx.restore();
 }
 
-function background() {
-  ctx.fillStyle = fade(0, height, "#d9f2f0", "#bde4e5");
+function drawPowerItem(type, x, y, scale, tilt) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(tilt);
+  ctx.scale(scale, scale);
+  if (type === "clock") {
+    oval(0, 0, 16, 16, "#fffcdf", "#437582");
+    path("M0 -9 V0 L7 4 M-4 -19 H4", null, "#437582", 2.8);
+    oval(0, 0, 2, 2, "#e67588");
+  } else if (type === "magnet") {
+    path("M-13 -10 V4 A13 13 0 0 0 13 4 V-10 H6 V4 A6 6 0 0 1 -6 4 V-10Z", "#dc7293", "#794766", 1.8);
+    path("M-13 -11 H-6 V-4 H-13Z M6 -11 H13 V-4 H6Z", "#d8eff2", "#466e78", 1.8);
+  } else {
+    path("M0 -18 L5 -6 L18 -5 L8 4 L11 16 L0 10 L-11 16 L-8 4 L-18 -5 L-5 -6Z", "#ffdf82", "#9d672c", 2);
+    path("M-2 -10 L-5 -3 L-11 -2", null, "#fff8db", 2);
+  }
+  sparkle(20, -13, 5, "#fffdf2");
+  ctx.restore();
+}
+
+function background(fever = false, now = 0) {
+  ctx.fillStyle = fever
+    ? fade(0, height, "#ffe9a6", "#f6bfd7")
+    : fade(0, height, "#d9f2f0", "#bde4e5");
   ctx.fillRect(0, 0, width, height);
   for (let row = 0; row * 49 < height; row += 1) {
     for (let col = 0; col * 54 < width; col += 1) {
       const x = col * 54 + (row % 2) * 23 + 14;
       const y = row * 49 + 18;
       oval(x, y, (row + col) % 3 === 0 ? 4 : 2, 2, "#ffffff83");
+    }
+  }
+  if (fever) {
+    for (let i = 0; i < 8; i += 1) {
+      const pulse = reducedMotion.matches ? 2 : 3 * (1 + Math.sin(now / 290 + i));
+      sparkle(width * ((i * 37 + 13) % 91 + 4) / 100, height * (.23 + (i % 4) * .16),
+        4 + pulse, i % 2 ? "#fffaf1" : "#fff3ba");
     }
   }
   ctx.fillStyle = "#fdf4dc";
@@ -234,7 +269,7 @@ function draw(now) {
   ctx.setTransform(canvas.width / width, 0, 0, canvas.height / height, 0, 0);
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
-  background();
+  background(state === "playing" && now < powers.feverEnd, now);
   if (state === "title") {
     const scale = Math.min(width / 242, height / 160, 2.35) * .91;
     cat(width / 2, height * .84, scale, "calm");
@@ -249,9 +284,11 @@ function draw(now) {
   const scale = artScale();
   for (const object of objects) {
     const fish = Object.hasOwn(rareById, object.type) ? rareById[object.type] : null;
-    if (fish) {
+    if (Object.hasOwn(powerItems, object.type)) {
+      drawPowerItem(object.type, object.x * width, object.y, scale, object.tilt);
+    } else if (fish) {
       if (fish.tier === 5) {
-        const pulse = (Math.sin(now / 130) + 1) * .5;
+        const pulse = reducedMotion.matches ? .5 : (Math.sin(now / 130) + 1) * .5;
         oval(object.x * width, object.y, (32 + pulse * 5) * scale, 21 * scale, "#fff4ab7d");
         sparkle(object.x * width - 27 * scale, object.y - 15 * scale, 5 + pulse * 4, "#fffbe2");
         sparkle(object.x * width + 28 * scale, object.y + 12 * scale, 9 - pulse * 4, "#fffbe2");
@@ -265,12 +302,32 @@ function draw(now) {
     }
   }
   const remaining = Math.max(0, moodUntil - now);
-  const bounce = mood === "happy" ? Math.sin(Math.PI * (1 - remaining / 450)) * 9 : 0;
+  const reaction = rareReaction && now - rareReaction.at < rareReaction.duration ? rareReaction : null;
+  const bounce = mood === "happy" && remaining
+    ? Math.sin(Math.PI * remaining / (reaction?.duration ?? 450)) * (reaction ? reaction.jump : 9) : 0;
+  if (state === "playing" && now < powers.guardEnd) {
+    oval(catX, height - 70 * scale, 57 * scale, 63 * scale, "#fff2a550", "#b78d43");
+  }
   cat(catX, height - 13, scale, remaining ? mood : "calm", bounce);
+  if (reaction) {
+    const progress = (now - reaction.at) / reaction.duration;
+    const count = reaction.legendary ? 10 : 4;
+    const radius = reducedMotion.matches ? 58 : 36 + progress * 48;
+    ctx.save();
+    ctx.globalAlpha = 1 - progress;
+    for (let i = 0; i < count; i += 1) {
+      const angle = Math.PI * (1 + i / (count - 1));
+      sparkle(catX + Math.cos(angle) * radius * scale,
+        height - (78 + bounce) * scale + Math.sin(angle) * radius * scale,
+        (i % 2 ? 7 : 11) * scale, reaction.legendary ? "#fff5a3" : reaction.color);
+    }
+    ctx.restore();
+  }
   for (const effect of effects) {
     const age = (now - effect.at) / 800;
     if (age >= 1) continue;
-    const x = clamp(effect.x * width, 62, width - 62);
+    const margin = effect.text.length > 9 ? 80 : 62;
+    const x = clamp(effect.x * width, margin, width - margin);
     const y = height - 104 * scale - age * 39;
     ctx.save();
     ctx.globalAlpha = Math.min(1, (1 - age) * 2.8);
@@ -281,6 +338,11 @@ function draw(now) {
     ctx.fillStyle = effect.color;
     ctx.strokeText(effect.text, x, y);
     ctx.fillText(effect.text, x, y);
+    if (effect.newFish) {
+      ctx.font = '900 13px sans-serif';
+      ctx.strokeText("NEW!", x, y - 22);
+      ctx.fillText("NEW!", x, y - 22);
+    }
     sparkle(x - 53, y - 9, 7 + age * 6, effect.color);
     sparkle(x + 52, y - 15, 6, effect.color);
     ctx.restore();
@@ -308,7 +370,7 @@ function resize() {
 }
 
 function spawn(elapsed) {
-  const progress = elapsed / duration;
+  const progress = Math.min(1, elapsed / duration);
   const roll = Math.random();
   const type = elapsed < 3600 ? "fish" : roll < .14 ? "boot" : roll < .28 ? "gold" : "fish";
   lastLane = clamp(lastLane + (Math.random() - .5) * .85, .12, .88);
@@ -320,40 +382,120 @@ function spawn(elapsed) {
     speed: .45 + progress * .33,
   });
   nextSpawn = elapsed + 1040 - progress * 375 + Math.random() * 120;
+  if (objects.some((object) => Object.hasOwn(powerItems, object.type))) return;
+  const power = rollPowerItem(powers, elapsed);
+  if (power) {
+    objects.push({ type: power, x: lastLane < .5 ? lastLane + .24 : lastLane - .24,
+      y: -65 * artScale(), tilt: 0, speed: .46 });
+  }
+}
+
+function catchEffect(object, now, text, color, newFish = false) {
+  effects = effects.filter((effect) => Math.abs(effect.x - object.x) * width > 135);
+  effects.push({ x: object.x, at: now, text, color, newFish });
 }
 
 function catchItem(object, now) {
   const { type } = object;
-  const value = points[type] ?? rareById[type].points;
-  score += value;
+  if (Object.hasOwn(powerItems, type)) {
+    if (activatePower(powers, type, now)) {
+      const { label, color } = powerItems[type];
+      catchEffect(object, now, label, color);
+      sound("power");
+    }
+    return;
+  }
+  if (type === "boot" && now < powers.guardEnd) {
+    catchEffect(object, now, "ガード！", "#865b1b");
+    return;
+  }
+
+  const rare = Object.hasOwn(rareById, type) ? rareById[type] : null;
+  const isNew = Boolean(rare && !savedProgress.collection[type] && !round.collection[type]);
+  let value = points[type] ?? rare.points;
   if (type === "boot") {
+    score += value;
     combo = 0;
+    mood = "sad";
+    moodUntil = now + 620;
+    rareReaction = null;
+    catchEffect(object, now, "−20", "#79496e");
+    sound("boot");
   } else {
     fishCount += 1;
     combo += 1;
-  }
-  if (type !== "boot") {
+    const feverStarted = tryFever(powers, combo, now);
+    if (now < powers.feverEnd) value *= 2;
+    score += value;
     recordRoundCatch(round, type, combo, score);
     announceMissions(round);
+
+    if (rare) {
+      const legendary = rare.tier === 5;
+      rareReaction = { at: now, duration: legendary ? 1150 : 660, jump: legendary ? 24 : 15,
+        legendary, color: rare.color };
+      if (legendary) legendUntil = now + 2100;
+    } else {
+      rareReaction = null;
+    }
+    mood = "happy";
+    moodUntil = now + (rareReaction?.duration ?? 450);
+    const label = "+" + value + (combo >= 2 ? "  " + combo + "コンボ" : "");
+    catchEffect(object, now, label, rare?.ink ?? (type === "gold" ? "#8b5517" : "#285e74"), isNew);
+    if (feverStarted) sound("fever");
+    if (rare?.tier === 5) sound("legend");
+    else if (!feverStarted) sound(rare?.tier >= 3 ? "gold" : type === "gold" ? "gold" : "fish");
   }
-  mood = type === "boot" ? "sad" : "happy";
-  moodUntil = now + (mood === "happy" ? 450 : 620);
-  const label = type === "boot" ? "−20" : "+" + value;
-  effects = effects.filter((effect) => Math.abs(effect.x - object.x) * width > 135);
-  effects.push({
-    x: object.x,
-    at: now,
-    text: combo >= 2 ? label + "  " + combo + "コンボ" : label,
-    color: type === "boot" ? "#79496e" : type === "gold" ? "#8b5517" : "#285e74",
-  });
   byId("score").textContent = score;
-  sound(Object.hasOwn(points, type) ? type : rareById[type].tier >= 3 ? "gold" : "fish");
+}
+
+let legendUntil = 0;
+const powerHud = byId("power-hud");
+const legendToast = byId("legend-toast");
+const powerChips = [
+  ["feverEnd", byId("fever-chip"), "FEVER!! ×2"],
+  ["magnetEnd", byId("magnet-chip"), "磁石"],
+  ["guardEnd", byId("guard-chip"), "ガード"],
+];
+
+function renderPowerHud(now) {
+  let anyActive = false;
+  for (const [expires, chip, label] of powerChips) {
+    const seconds = Math.ceil(Math.max(0, powers[expires] - now) / 1000);
+    if (chip.hidden === Boolean(seconds)) chip.hidden = !seconds;
+    if (seconds) {
+      anyActive = true;
+      const text = label + " " + seconds + "秒";
+      if (chip.textContent !== text) chip.textContent = text;
+    }
+  }
+  if (powerHud.hidden === anyActive) powerHud.hidden = !anyActive;
+  if (legendToast.hidden !== (now >= legendUntil)) legendToast.hidden = now >= legendUntil;
+}
+
+function celebrateRecord(isRecord) {
+  byId("record-badge").hidden = !isRecord;
+  const container = byId("confetti");
+  container.replaceChildren();
+  if (!isRecord || reducedMotion.matches) return;
+  const colors = ["#e8738e", "#5daebe", "#eab541", "#8d78bd"];
+  for (let i = 0; i < 20; i += 1) {
+    const piece = document.createElement("span");
+    piece.style.setProperty("--x", (i * 37 % 100) + "%");
+    piece.style.setProperty("--drift", ((i * 23 % 85) - 42) + "px");
+    piece.style.setProperty("--delay", (i % 7) * 75 + "ms");
+    piece.style.background = colors[i % colors.length];
+    container.append(piece);
+  }
 }
 
 function finish() {
   if (state !== "playing") return;
   state = "result";
   byId("mission-toast").hidden = true;
+  byId("power-hud").hidden = true;
+  byId("legend-toast").hidden = true;
+  byId("discovery-badge").hidden = true;
   byId("replay").disabled = true;
   byId("return-title").disabled = true;
   byId("earned-xp").textContent = "…";
@@ -366,13 +508,16 @@ function finish() {
     byId("replay").disabled = false;
     byId("return-title").disabled = false;
   });
+  let previousBest = best;
   try {
-    best = Math.max(best, Number(localStorage.getItem(bestKey)) || 0, score);
+    previousBest = Math.max(best, Number(localStorage.getItem(bestKey)) || 0);
+    best = Math.max(previousBest, score);
     localStorage.setItem(bestKey, String(best));
   } catch {
     best = Math.max(best, score);
   }
   byId("time").textContent = "0";
+  celebrateRecord(score > previousBest);
   byId("final-score").textContent = score;
   byId("final-best").textContent = best;
   byId("final-fish").textContent = fishCount;
@@ -389,11 +534,11 @@ function finish() {
 
 function frame(now) {
   const elapsed = now - startedAt;
-  if (elapsed >= duration) {
+  if (elapsed >= duration + powers.extension) {
     finish();
     return;
   }
-  byId("time").textContent = Math.ceil((duration - elapsed) / 1000);
+
   const dt = clamp((now - lastFrame) / 1000, 0, .05);
   lastFrame = now;
   if (keys.has("ArrowLeft")) moveCat(catX - dt * width * 1.2);
@@ -406,15 +551,21 @@ function frame(now) {
   objects = objects.filter((object) => {
     const previousY = object.y;
     object.y += object.speed * height * dt;
+    const isFish = object.type !== "boot" && !Object.hasOwn(powerItems, object.type);
+    if (isFish && now < powers.magnetEnd) {
+      object.x = pullFishX(object.x * width, object.y, catX, catchTop, scale, dt) / width;
+    }
     if (object.y >= catchTop && previousY <= catchBottom &&
         Math.abs(object.x * width - catX) <= 54 * scale) {
       catchItem(object, now);
       return false;
     }
     if (object.y <= height + 22 * scale) return true;
-    if (object.type !== "boot") combo = 0;
+    if (isFish) combo = 0;
     return false;
   });
+  byId("time").textContent = Math.ceil((duration + powers.extension - elapsed) / 1000);
+  renderPowerHud(now);
   effects = effects.filter((effect) => now - effect.at < 800);
   draw(now);
   requestAnimationFrame(frame);
@@ -424,6 +575,9 @@ function start() {
   if (state === "playing" || byId("replay").disabled) return;
   refreshTitleProgress();
   round = newRound(best);
+  powers = newPowers();
+  rareReaction = null;
+  legendUntil = 0;
   state = "playing";
   score = fishCount = combo = moodUntil = 0;
   objects = [];
