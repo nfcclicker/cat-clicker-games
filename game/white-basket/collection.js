@@ -136,6 +136,7 @@ function openFishDetail(fish) {
   fishDetail.hidden = false;
   progressDialog.scrollTop = 0;
   progressElement("fish-detail-title").focus({ preventScroll: true });
+  document.dispatchEvent(new CustomEvent("ui-fish-detail", { detail: fish.id }));
 }
 
 progressElement("back-to-fish").addEventListener("click", () => {
@@ -151,7 +152,7 @@ for (const stage of seaStages) stageFilter.append(stageOption(stage.id, stage.la
 rarityFilter.addEventListener("change", renderFishList);
 stageFilter.addEventListener("change", renderFishList);
 
-const missionTabs = ["achievements", "daily", "weekly"];
+const missionTabs = ["daily", "weekly", "achievements"];
 const missionPanel = progressElement("mission-panel");
 let activeMissionTab = "achievements";
 let viewedMissionDay;
@@ -210,7 +211,7 @@ function refreshMissionDate() {
   renderMissionTab(activeMissionTab);
 }
 
-function showProgressDialog(kind) {
+function showProgressDialog(kind, embedded = false) {
   refreshTitleProgress();
   const isCollection = kind === "collection";
   progressElement("progress-dialog-title").textContent = isCollection ? "おさかな図鑑" : "ミッション";
@@ -223,11 +224,11 @@ function showProgressDialog(kind) {
     missionPanel.removeAttribute("aria-labelledby");
     renderFishList();
   } else {
-    renderMissionTab("achievements");
+    renderMissionTab("daily");
     clearInterval(missionDateTimer);
     missionDateTimer = setInterval(refreshMissionDate, 1000);
   }
-  progressDialog.showModal();
+  if (embedded) progressDialog.show(); else progressDialog.showModal();
   progressDialog.scrollTop = 0;
 }
 

@@ -26,6 +26,7 @@
   <script src="./game.js" defer></script>
   <script src="./session.js" defer></script>
   <script src="./aquarium.js" defer></script>
+  <script src="./ui.js" defer></script>
 </head>
 <body>
   <section id="access-guide" class="portal" hidden>
@@ -42,7 +43,7 @@
     <button id="resume-game" class="primary" type="button">つづきからあそぶ</button>
   </dialog>
   <main class="app">
-    <header class="toolbar">
+    <header class="toolbar" id="common-header">
       <a href="../../" class="home"><span class="home-icon" aria-hidden="true">⌂</span> ねこクリッカー</a>
       <button id="sound" class="sound" type="button" aria-label="効果音" aria-pressed="false"><span aria-hidden="true">♪</span> <span id="sound-state" aria-hidden="true">OFF</span></button>
     </header>
@@ -95,7 +96,7 @@
         <span><i class="fish-mark gold" aria-hidden="true"></i>金のさかな <b>+50</b></span>
         <span><i class="boot-mark" aria-hidden="true"></i>長靴 <b>−20</b></span>
       </div>
-      <button id="start" class="primary" type="button">あそぶ <span aria-hidden="true">▶</span></button>
+      <button id="start" class="primary" type="button">あそぶ！ <span aria-hidden="true">▶</span></button>
       <label class="stage-control" for="stage-choice">ステージ
         <select id="stage-choice"></select>
       </label>
@@ -203,7 +204,7 @@
         <h2 id="progress-dialog-title"></h2>
         <div id="mission-tabs" class="mission-tabs" role="tablist" aria-label="ミッションの種類" hidden>
           <button type="button" role="tab" id="tab-achievements" aria-controls="mission-panel" aria-selected="true">実績</button>
-          <button type="button" role="tab" id="tab-daily" aria-controls="mission-panel" aria-selected="false" tabindex="-1">デイリー</button>
+          <button type="button" role="tab" id="tab-daily" aria-controls="mission-panel" aria-selected="false" tabindex="-1">毎日</button>
           <button type="button" role="tab" id="tab-weekly" aria-controls="mission-panel" aria-selected="false" tabindex="-1">週間</button>
         </div>
         <p id="progress-dialog-summary"></p>
@@ -219,6 +220,44 @@
         <div id="fish-detail-body"></div>
       </section>
     </dialog>
+    <section id="menu-screen" class="menu-screen" aria-labelledby="menu-screen-title" hidden>
+      <p class="eyebrow">ねこクリッカー</p>
+      <h1 id="menu-screen-title">メニュー</h1>
+      <div class="menu-list">
+        <button type="button" data-menu="records">プレイきろく <span aria-hidden="true">›</span></button>
+        <button type="button" data-menu="titles">称号コレクション <span aria-hidden="true">›</span></button>
+        <button type="button" data-menu="save">セーブ・引き継ぎ <span aria-hidden="true">›</span></button>
+        <button type="button" data-menu="sound">サウンド・設定 <span aria-hidden="true">›</span></button>
+        <button type="button" data-menu="help">あそびかた <span aria-hidden="true">›</span></button>
+      </div>
+      <p class="version-label">おさかなキャッチ Ver.2.4.1</p>
+    </section>
+    <section id="help-screen" class="menu-screen" hidden>
+      <button id="close-help" class="secondary" type="button">← メニュー</button>
+      <h2>あそびかた</h2>
+      <div class="help-card"><h3>30秒、おさかなを集めよう</h3>
+        <p>画面を左右になぞって白猫を動かそう。パソコンではマウスか左右キーで動かせます。</p>
+        <p>普通の魚は10点、金の魚は50点。長靴は−20点です。レア魚の得点は図鑑で確認できます。</p>
+        <p>10コンボで5秒間フィーバー！ 魚の得点が2倍になります（1プレイ2回まで）。</p></div>
+      <div class="help-card"><h3>うれしいアイテム</h3>
+        <p>時計は残り時間を5秒延長。磁石は3秒間、近くの魚を引き寄せます。星は5秒間、長靴をガードします。</p></div>
+      <div class="help-card"><h3>集めて、かざろう</h3>
+        <p>捕まえたレア魚は図鑑とマイ水族館へ。ステージごとの目標得点を達成すると水族館の背景が増えます。</p>
+        <p>進み具合は自動保存されます。スマホを変える前に「セーブ・引き継ぎ」でコードを保存してね。</p></div>
+    </section>
+    <section id="sound-screen" class="menu-screen" hidden>
+      <button id="close-sound" class="secondary" type="button">← メニュー</button>
+      <h2>サウンド・設定</h2>
+      <div class="help-card"><h3>効果音</h3><p>音符ボタンでオン・オフを切り替えます。</p><div id="sound-slot"></div></div>
+      <p class="setting-note">端末の「視差効果を減らす」設定にも対応しています。</p>
+    </section>
+    <nav id="bottom-nav" class="bottom-nav" aria-label="メイン">
+      <button type="button" data-tab="play" aria-current="page"><span class="nav-icon" data-icon="gamepad" aria-hidden="true"></span><span>あそぶ</span></button>
+      <button type="button" data-tab="collection"><span class="nav-icon" data-icon="book" aria-hidden="true"></span><span>図鑑</span></button>
+      <button type="button" data-tab="aquarium"><span class="nav-icon" data-icon="fish" aria-hidden="true"></span><span>水族館</span></button>
+      <button type="button" data-tab="missions"><span class="nav-icon" data-icon="trophy" aria-hidden="true"></span><span>ミッション<span id="mission-dot" class="notification-dot" hidden></span></span></button>
+      <button type="button" data-tab="menu"><span class="nav-icon" data-icon="menu" aria-hidden="true"></span><span>メニュー</span></button>
+    </nav>
     <p id="save-indicator" class="save-indicator" role="status" hidden></p>
     <p id="instruction" class="instruction" hidden>左右になぞる・マウスを動かす・← → キー</p>
     <noscript>遊ぶにはブラウザの JavaScript を有効にしてください。</noscript>

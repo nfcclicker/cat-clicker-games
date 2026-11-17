@@ -93,6 +93,24 @@ function renderAquariumControls() {
       else aquariumStatus.textContent = stage.label + "で" + aquariumTargets[stage.id] +
         "点を達成すると解放（記録 " + (p.stageRecords[stage.id]?.best ?? 0) + "点）。";
     });
+    const preview = document.createElement("canvas");
+    preview.width = 144;
+    preview.height = 74;
+    const painter = preview.getContext("2d");
+    const gradient = painter.createLinearGradient(0, 0, 0, 74);
+    gradient.addColorStop(0, stage.top);
+    gradient.addColorStop(1, stage.bottom);
+    painter.fillStyle = gradient;
+    painter.fillRect(0, 0, 144, 74);
+    painter.fillStyle = stage.sand;
+    painter.fillRect(0, 60, 144, 14);
+    drawSeaScenery(painter, stage, 144, 74);
+    preview.setAttribute("aria-hidden", "true");
+    const caption = makeElement("small", unlocked
+      ? (stage.id === "coast" ? "初期解放" : "解放済み")
+      : stage.label + " " + aquariumTargets[stage.id] + "点");
+    button.prepend(preview);
+    button.append(caption);
     row.append(button);
     return row;
   }));
@@ -290,7 +308,7 @@ function animateAquarium(now) {
   startAquariumAnimation();
 }
 
-async function openAquarium() {
+async function openAquarium(embedded = false) {
   if (state !== "title" || !gameAccessAllowed || aquariumDialog.open) return;
   refreshTitleProgress();
   aquariumProgress = savedProgress; aquariumEpoch = aquariumProgress.saveEpoch;
@@ -305,7 +323,9 @@ async function openAquarium() {
   aquariumDialog.classList.remove("viewing"); byId("view-aquarium").setAttribute("aria-pressed", "false");
   byId("aquarium-fish-panel").hidden = true; byId("aquarium-background-panel").hidden = true;
   syncAquariumFish(); renderAquariumControls();
-  aquariumDialog.showModal(); resizeAquarium(); startAquariumAnimation();
+  if (embedded) aquariumDialog.show(); else aquariumDialog.showModal();
+  resizeAquarium();
+  startAquariumAnimation();
 }
 byId("show-aquarium").addEventListener("click", async () => {
   const button = byId("show-aquarium");

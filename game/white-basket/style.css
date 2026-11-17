@@ -560,3 +560,229 @@ progress::-moz-progress-bar { background: #66a6b4; border-radius: 999px; }
 .aquarium-status:empty { display: none; }
 .aquarium-dialog.viewing .aquarium-controls, .aquarium-dialog.viewing .aquarium-tip, .aquarium-dialog.viewing .aquarium-status { display: none; }
 .aquarium-dialog.viewing .aquarium-tank { height: min(78dvh,700px); }
+
+/* Shared screens and navigation. Storage and gameplay remain in their original modules. */
+body { background-size: 22px 22px; }
+.app { width: min(100%, 560px); padding: max(10px,env(safe-area-inset-top)) 14px calc(91px + env(safe-area-inset-bottom)); }
+.legacy-links { display: none !important; }
+#common-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  margin: -10px -14px 14px;
+  padding: 10px 14px 9px;
+  gap: 10px;
+  border-bottom: 1px solid #eadbc9;
+  background: #fff8e9f7;
+  backdrop-filter: blur(8px);
+}
+#common-header .profile { width: auto; flex: 1; min-width: 0; margin: 0; padding: 0; background: transparent; border: 0; border-radius: 0; }
+.header-player { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.header-player #level { flex: 0 0 auto; font-size: 1rem; }
+.header-player #rank, .header-player #active-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 0; font-size: .69rem; font-weight: 750; color: #705448; }
+.header-xp { display: flex; align-items: center; gap: 7px; margin-top: 5px; }
+.header-xp progress { margin: 0; flex: 1; height: 5px; min-width: 30px; }
+#common-header #xp-label { flex: 0 0 auto; color: #755b50; font-size: .58rem; }
+.header-save { flex: 0 0 auto; max-width: 95px; color: #456c63; font-size: .61rem; font-weight: 800; padding-left: 9px; border-left: 1px solid #dfd5bf; }
+.header-save::before { content: ""; display: inline-block; width: 5px; height: 5px; border-radius: 50%; margin-right: 4px; background: #588a78; vertical-align: middle; }
+.header-save.has-error { color: #9d4158; }
+.header-save.has-error::before { background: #ba5b71; }
+.bottom-nav {
+  position: fixed;
+  inset: auto 0 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: repeat(5,minmax(0,1fr));
+  max-width: 560px;
+  margin-inline: auto;
+  padding: 6px 7px max(8px,env(safe-area-inset-bottom));
+  border-top: 1px solid #dcc8b5;
+  background: #fffaf0fa;
+  box-shadow: 0 -4px 15px #735c4520;
+}
+.bottom-nav button {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 3px;
+  min-height: 54px;
+  min-width: 0;
+  padding: 5px 1px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: #654a40;
+  font-family: inherit;
+  font-size: clamp(.61rem,2.7vw,.72rem);
+  font-weight: 800;
+  white-space: nowrap;
+}
+.bottom-nav [aria-current="page"] { color: #8a4055; background: #f8dbe0; }
+.ui-icon { display: inline-block; width: 24px; height: 24px; flex: 0 0 auto; }
+.nav-icon { display: flex; height: 24px; }
+.notification-dot { position: absolute; top: 6px; right: 25%; width: 7px; height: 7px; border-radius: 50%; background: #b74d68; border: 1px solid #fff9e9; }
+.main-tab[open] {
+  display: block;
+  position: static;
+  inset: auto;
+  width: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #50372e;
+  overflow: visible;
+}
+.main-tab::backdrop { background: transparent; }
+.main-tab .tab-back { display: none; }
+#progress-dialog.main-tab > header, #player-dialog.main-tab > header {
+  position: static;
+  padding: 2px 0 12px;
+  background: transparent;
+}
+.main-tab h2, .menu-screen h1 { margin: 4px 0 12px; text-align: left; letter-spacing: .01em; font-size: 1.45rem; }
+#progress-dialog-summary { text-align: left; margin: 7px 0 0; color: #775c4b; font-size: .77rem; }
+.title { margin: 9px 0 14px; }
+.title .eyebrow { margin: 0 0 6px; font-size: .66rem; letter-spacing: .09em; }
+.title h1 { font-size: clamp(29px,8.8vw,45px); }
+.title .intro { font-size: .72rem; font-weight: 600; color: #76594d; }
+body:not(.playing):not(.finished) #field { height: clamp(190px,29svh,260px); border-radius: 24px; }
+#menu { display: flex; flex-direction: column; align-items: stretch; }
+#start { order: 2; align-self: center; width: 100%; max-width: none; min-height: 58px; font-size: 1.3rem; border-radius: 17px; margin-top: 11px; }
+#menu .best { order: 3; margin-top: 13px; font-size: .75rem; }
+.stage-cards {
+  order: 1;
+  display: flex;
+  overflow-x: auto;
+  gap: 8px;
+  margin-top: 15px;
+  padding: 3px 2px 9px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  scrollbar-color: #c5bcb0 transparent;
+  overscroll-behavior-x: contain;
+}
+.stage-card {
+  flex: 0 0 115px;
+  min-width: 0;
+  padding: 0 0 7px;
+  border: 1px solid #d8cfbe;
+  border-radius: 13px;
+  background: #fffdf6;
+  color: #5a4136;
+  overflow: hidden;
+  text-align: left;
+  scroll-snap-align: start;
+}
+.stage-card canvas { width: 100%; height: 39px; }
+.stage-card strong { display: block; padding: 6px 8px 2px; font-size: .73rem; }
+.stage-card small { display: block; padding: 0 8px; font-size: .63rem; color: #836c5b; }
+.stage-card[aria-pressed="true"] { border: 2px solid #b66579; background: #fff0f1; }
+.stage-card:disabled { opacity: .66; cursor: default; }
+.stage-card:disabled canvas { filter: grayscale(.65); }
+.stage-card .stage-cleared { color: #356958; }
+.collection-filters { margin: 0 0 12px; gap: 9px; }
+.collection-filters label { color: #70584a; font-size: .72rem; }
+.collection-filters select { background: #fffdf6; }
+.collection-grid { gap: 9px; }
+.collection-card { border-color: #dfd1bf; border-radius: 16px; }
+.collection-card canvas { max-width: 130px; }
+.fish-entry { position: relative; padding: 9px 6px 11px; min-height: 151px; }
+.fish-entry strong { display: block; font-size: .75rem; line-height: 1.5; }
+.fish-entry .new-badge { position: absolute; top: 8px; right: 8px; }
+.fish-entry .fish-hint { max-width: 15em; margin: 5px auto 0; font-size: .62rem; }
+.fish-entry p { font-size: .68rem; }
+.fish-detail { padding: 0; }
+.fish-detail h3 { margin-top: 18px; }
+.fish-detail p { font-size: .85rem; line-height: 1.7; }
+#fish-detail-body { background: #fffdf5; border: 1px solid #e8d4bf; border-radius: 18px; margin-top: 12px; padding: 13px 10px; }
+.screen-tabs { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 5px; width: 100%; }
+.mission-tabs { display: block; margin: 0 0 12px; }
+.mission-tabs button { width: 100%; border-radius: 12px; background: #e7efea; border-color: #d0ddd4; }
+.mission-tabs [aria-selected="true"] { background: #f6d5de; color: #8a4055; border-color: #bd7d8b; }
+.mission-card { padding: 13px 12px; border-radius: 15px; border-color: #e2d2bf; }
+.mission-card .progress-row { align-items: flex-start; }
+.mission-card strong { font-size: .84rem; }
+.mission-card p { margin: 8px 0; font-size: .73rem; color: #775d50; }
+.mission-card progress { height: 7px; }
+.badge { background: #f4e8bf; color: #73521c; font-size: .65rem; }
+.aquarium-dialog.main-tab[open] { padding: 0; }
+.aquarium-header { margin: 0 0 10px; min-height: 41px; }
+.aquarium-header h2 { font-size: 1.35rem; margin: 0; }
+.aquarium-header p { text-align: left; }
+.aquarium-tank { height: max(285px,calc(100svh - 320px - env(safe-area-inset-bottom))); max-height: 630px; border-radius: 20px; }
+.aquarium-tip { font-size: .6rem; margin-block: 7px; }
+.aquarium-controls { grid-template-columns: repeat(4,minmax(0,1fr)); gap: 5px; }
+.aquarium-controls button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; min-height: 66px; padding: 7px 1px; font-size: clamp(.59rem,2.5vw,.71rem); font-weight: 800; }
+.aquarium-controls .ui-icon { width: 23px; height: 23px; }
+.aquarium-panel:not([hidden]) {
+  position: fixed;
+  z-index: 25;
+  left: 50%;
+  bottom: calc(72px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: min(calc(100% - 20px),530px);
+  max-height: min(58svh,500px);
+  margin: 0;
+  padding: 14px 12px;
+  overflow-y: auto;
+  border: 1px solid #d3bca6;
+  border-radius: 22px 22px 12px 12px;
+  box-shadow: 0 -12px 60px #48332640;
+  background: #fffaf0;
+  overscroll-behavior: contain;
+}
+.sheet-header { display: flex; justify-content: space-between; align-items: center; position: sticky; top: -14px; padding: 8px 0; background: #fffaf0; z-index: 1; }
+.sheet-header button { min-width: 44px; min-height: 44px; border: 1px solid #dfcbb9; border-radius: 50%; background: #fffef8; color: #6a4b41; font-size: 1.1rem; }
+.sheet-header h3 { margin: 0; }
+#aquarium-background-list { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px; }
+#aquarium-background-list button { padding: 0 0 8px; overflow: hidden; min-width: 0; font-size: .8rem; }
+#aquarium-background-list canvas { width: 100%; height: 65px; display: block; margin-bottom: 7px; }
+#aquarium-background-list small { display: block; padding: 5px 3px 0; font-size: .63rem; color: #6c584a; }
+#aquarium-background-list [aria-pressed="true"] { border: 2px solid #b66579; }
+.ui-viewing #common-header, .ui-viewing #bottom-nav, .ui-viewing .aquarium-header, .ui-viewing .aquarium-tip { display: none; }
+.ui-viewing .app { padding: 6px; }
+.ui-viewing .aquarium-tank { height: calc(100dvh - 16px); max-height: none; border-radius: 15px; }
+.ui-viewing #aquarium-background-name { opacity: .5; }
+.menu-screen > .eyebrow { margin: 5px 0; }
+.menu-list { display: grid; gap: 9px; }
+.menu-list button { display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 64px; border: 1px solid #e0cdb9; border-radius: 16px; padding: 12px 16px; background: #fffdf5; color: #563d32; font-family: inherit; font-size: .94rem; font-weight: 800; text-align: left; }
+.menu-list span { font-size: 1.4rem; color: #967965; }
+.version-label { color: #7a6254; font-size: .7rem; margin: 19px 0; text-align: center; }
+.help-card { padding: 14px 13px; background: #fffdf5; border: 1px solid #e4d4bf; border-radius: 16px; margin: 12px 0; }
+.help-card h3 { margin: 0; font-size: .95rem; }
+.help-card p, .setting-note { font-size: .84rem; line-height: 1.8; }
+.help-card p:last-child { margin-bottom: 0; }
+#player-dialog header h2 { margin-top: 15px; }
+#player-records.records-only > h3, #player-records.records-only > label, #player-records.records-only > select, #player-records.records-only > ul { display: none; }
+#player-records.titles-only #stats-list { display: none; }
+.stats-list { padding: 7px 12px; background: #fffdf5; border-radius: 15px; }
+.stats-list div { padding-block: 9px; font-size: .79rem; }
+.stats-list dt { max-width: 58%; }
+.stats-list dd { min-width: 0; max-width: 60%; }
+.save-intro { font-size: .83rem; color: #72564b; line-height: 1.8; margin: 0 0 13px; }
+.save-buttons { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.save-buttons button { font-size: .77rem; min-height: 54px; padding: 8px 5px; }
+.save-main-action { background: #f6d5de; color: #793d4f; border-color: #c48a98; }
+#save-code-file { grid-column: 1 / -1; min-height: 44px; background: #fffdf5; border-color: #dfcbb9; color: #654b40; }
+.save-details { background: #fffdf6; border-radius: 15px; padding: 11px; }
+.save-details summary { min-height: 31px; line-height: 31px; font-size: .83rem; }
+.code-input { min-height: 86px; font-size: .74rem; }
+.save-caveat { font-size: .72rem; }
+.restore-preview { margin-top: 12px; }
+#save-indicator { bottom: calc(82px + env(safe-area-inset-bottom)); }
+.ui-game #save-indicator { bottom: max(10px,env(safe-area-inset-bottom)); }
+.ui-game .app { padding-bottom: max(12px,env(safe-area-inset-bottom)); }
+.ui-game #field { margin-top: 0; height: calc(100dvh - 65px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); max-height: 790px; }
+.secondary:disabled, .quiet-button:disabled { color: #8d8279; border-color: #d9d1c7; background: #eee9df; opacity: .75; cursor: default; }
+button, select, summary, input[type="file"] { touch-action: manipulation; }
+:focus-visible { outline: 3px solid #367486; outline-offset: 3px; }
+@media (min-width: 700px) {
+  #common-header { border-radius: 0 0 16px 16px; }
+  .collection-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
+}

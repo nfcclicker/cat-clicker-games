@@ -75,7 +75,7 @@ function cancelImport() {
   progressElement("restore-preview").hidden = true;
 }
 
-function showPlayerDialog(kind) {
+function showPlayerDialog(kind, embedded = false) {
   refreshTitleProgress();
   cancelImport();
   playerStatus.textContent = "";
@@ -88,7 +88,7 @@ function showPlayerDialog(kind) {
     progressElement("generated-code-label").hidden = true;
     renderSaveOverview();
   }
-  playerDialog.showModal();
+  if (embedded) playerDialog.show(); else playerDialog.showModal();
   playerDialog.scrollTop = 0;
 }
 
