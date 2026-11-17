@@ -1,0 +1,62 @@
+# おさかなキャッチ Ver.2
+
+3Dプリント製の籠入り白猫クリッカー向けミニゲームです。HTML・CSS・JavaScript だけで動作し、ビルドやインストールは不要です。
+
+## ローカルで遊ぶ
+
+Python 3 が使える環境で、`cat-clicker-games` フォルダを開き、次を実行します。
+
+```powershell
+python -m http.server 8000 --bind 127.0.0.1
+```
+
+Windows で Python Launcher を使う場合は `python` を `py` に置き換えられます。
+
+- 案内ページ — [http://localhost:8000/](http://localhost:8000/)
+- ゲーム直通 — [http://localhost:8000/game/white-basket/](http://localhost:8000/game/white-basket/)
+
+音は最初オフです。右上の音符ボタンで切り替えられます。
+
+## 遊び方
+
+30秒間、白猫を左右になぞるか、マウスや左右キーで動かします。普通の魚は10点、金色の魚は50点、長靴はマイナス20点です。魚を続けて取ると2匹目からコンボを表示します。魚を逃すか長靴を取るとコンボが途切れます。得点はマイナスになる場合があります。ハイスコアは初期値0で、同じブラウザ・公開元のローカルストレージに保存します。
+
+## ミッション・レベル・おさかな図鑑
+
+- タイトル画面の「ミッション」で12種類の実績を確認できます。魚の捕獲やコンボなどで条件を満たすとゲーム内に通知が出ます。スコア系の条件はプレイ中に到達した最高点で判定します。
+- 30秒を終えると20 XP、通常魚・レア魚は各2 XP、金の魚は各10 XPです。最大10コンボで15 XP、最大20コンボではさらに25 XPが加算されます。次のレベルに必要なXPは `100 + (現在レベル - 1) × 50` で、上限はレベル50です。
+- 通常魚として抽選された枠の10%がレア魚になります。レア魚内の比率は★から順に60%、28%、9%、2.5%、0.5%です。同じレア度内では各魚を均等に抽選します。通常の金の魚と「でんせつの金魚」は別の魚です。
+- 捕獲したレア魚の初回発見日時と捕獲数は図鑑で確認できます。進捗は30秒のプレイを完了した時点でまとめて保存します。日数は開始時の端末の現地日付で数えます。
+- ハイスコアは従来の保存キーを使い、Ver.2の進捗は `cat-clicker:white-basket:progress:v2` に保存します。保存エラー時は結果画面で通知し、ページを開いたまま次のプレイを完了すると再試行します。
+
+## Web公開とNFC
+
+1. `cat-clicker-games` の中身を、階層を保って静的ホスティングの公開ディレクトリに配置します。各ディレクトリの `index.html` を配信する設定にします。
+2. HTTPS の公開先で案内ページと `game/white-basket/` をスマートフォンから開き、プレイと効果音を確認します。
+3. 確認したゲーム直通の HTTPS URL を、NFC書き込みアプリ等でNDEFのURLレコードとしてシールに登録します。貼り付け後、スマートフォンをかざして同じページを開けることを確認します。
+
+HTTPS または localhost で初回アクセスし、ページのキャッシュが完了すると、同じゲームURLをオフラインで再度開けます。初回アクセスには通信が必要です。ブラウザのストレージ削除等でキャッシュは消える場合があります。オフラインキャッシュの対象はゲームページです。
+
+### GitHub Pagesで公開・更新する
+
+1. ZIPを展開し、`cat-clicker-games` 内の `index.html`、`game/`、`.nojekyll`、`README.md` を公開リポジトリのルートに配置して `main` にプッシュします。
+2. リポジトリの **Settings → Pages** を開き、**Deploy from a branch → main → /(root)** を選択して保存します。公開後は **Enforce HTTPS** を確認します。[GitHub Pagesの公開元設定](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site)
+3. Pagesに表示された実際の公開URLの末尾に `game/white-basket/` を付けて開きます。既にNFCに登録してある場合は、同じ公開URLとパスを維持します。
+4. 更新時は変更ファイルと一緒に `sw.js` のキャッシュ名の版を上げてプッシュします。旧版を開いていた端末では、オンラインで一度アクセスして更新を取得し、ゲームのタブをすべて閉じてから同じURLを開き直します。タイトルに「ミッション」「おさかな図鑑」が表示されればVer.2です。
+
+## ファイル構成
+
+- `index.html` — 案内ページ
+- `game/white-basket/index.html` — タイトル・プレイ・結果画面
+- `game/white-basket/style.css` — レイアウトとレスポンシブ表示
+- `game/white-basket/cat-face.js` — 添付の白猫・黒猫を基準にした Canvas の顔描画
+- `game/white-basket/game.js` — Canvas描画、入力、ゲーム進行、効果音と保存
+- `game/white-basket/fish-data.js` — レア魚の抽選と Canvas 描画
+- `game/white-basket/achievements.js` — 実績と解除条件
+- `game/white-basket/progress.js` — XP、レベル、進捗保存と復旧
+- `game/white-basket/collection.js` — 図鑑、ミッション、進捗表示
+- `game/white-basket/sw.js` — ゲーム用のオフラインキャッシュ
+- `game/white-basket/assets/README.md` — 素材について
+- `README.md` — 起動、遊び方、公開手順
+
+ゲームを追加するときは `game/` の下に個別フォルダを作ります。顔を再利用する場合は `cat-face.js` をゲーム本体の前に読み込み、描画位置と倍率を Canvas の transform で設定してから `drawCatFace(ctx, { coat: "black", expression: "calm" })` を呼びます。表情には `calm`、`happy`、`sad` が使えます。キャッシュ対象の HTML・CSS・JS を更新する場合は、同時に `sw.js` のキャッシュ名のバージョンを変更してください。更新が待機している場合は、開いているゲームのタブをすべて閉じてから開き直すと新しいバージョンが有効になります。

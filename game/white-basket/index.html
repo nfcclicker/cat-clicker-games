@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#fff8e9">
+  <title>おさかなキャッチ｜ねこクリッカー</title>
+  <link rel="stylesheet" href="./style.css">
+  <script src="./cat-face.js" defer></script>
+  <script src="./fish-data.js" defer></script>
+  <script src="./achievements.js" defer></script>
+  <script src="./progress.js" defer></script>
+  <script src="./collection.js" defer></script>
+  <script src="./game.js" defer></script>
+</head>
+<body>
+  <main class="app">
+    <header class="toolbar">
+      <a href="../../" class="home"><span class="home-icon" aria-hidden="true">⌂</span> ねこクリッカー</a>
+      <button id="sound" class="sound" type="button" aria-label="効果音" aria-pressed="false"><span aria-hidden="true">♪</span> <span id="sound-state" aria-hidden="true">OFF</span></button>
+    </header>
+    <section id="title" class="title">
+      <p class="eyebrow">籠入り白猫のミニゲーム</p>
+      <h1>おさかな<span>キャッチ</span></h1>
+      <p class="intro">白猫を動かして、おさかなを集めよう！</p>
+    </section>
+    <div id="field" class="field">
+      <canvas id="scene" aria-label="籠に入った白猫とおさかな"></canvas>
+      <div id="hud" class="hud" hidden>
+        <div><span>スコア</span><strong id="score">0</strong></div>
+        <div><span>のこり</span><strong id="time">30</strong><small> 秒</small></div>
+      </div>
+      <p id="mission-toast" class="mission-toast" role="status" hidden></p>
+      <section id="result" class="result" aria-labelledby="result-title" hidden>
+        <div class="result-card">
+          <h2 id="result-title" tabindex="-1">おしまい！</h2>
+          <p class="total">今回のスコア <strong id="final-score">0</strong></p>
+          <dl>
+            <div><dt>ハイスコア</dt><dd id="final-best">0</dd></div>
+            <div><dt>キャッチした魚</dt><dd><span id="final-fish">0</span> 匹</dd></div>
+          </dl>
+          <dl class="round-progress">
+            <div><dt>獲得XP</dt><dd id="earned-xp">—</dd></div>
+            <div><dt>新しく発見した魚</dt><dd id="new-fish">—</dd></div>
+            <div><dt>解除した実績</dt><dd id="new-missions">—</dd></div>
+          </dl>
+          <p id="level-up" class="level-up" role="status" hidden></p>
+          <p id="save-warning" class="save-warning" role="status" hidden>進捗を保存できませんでした。このページを開いたまま次のプレイを終えると再試行します。</p>
+          <button id="replay" class="primary" type="button">もういっかい <span aria-hidden="true">↻</span></button>
+          <button id="return-title" class="secondary result-back" type="button">タイトルへ戻る</button>
+        </div>
+      </section>
+    </div>
+    <section id="menu" class="menu">
+      <div class="legend" aria-label="得点">
+        <span><i class="fish-mark" aria-hidden="true"></i>さかな <b>+10</b></span>
+        <span><i class="fish-mark gold" aria-hidden="true"></i>金のさかな <b>+50</b></span>
+        <span><i class="boot-mark" aria-hidden="true"></i>長靴 <b>−20</b></span>
+      </div>
+      <button id="start" class="primary" type="button">あそぶ <span aria-hidden="true">▶</span></button>
+      <p class="best"><span aria-hidden="true">★</span> ハイスコア <strong id="best">0</strong></p>
+      <div class="profile">
+        <div class="progress-row"><strong id="level">Lv. 1</strong><span id="rank"></span><small id="xp-label"></small></div>
+        <progress id="xp-bar" aria-label="次のレベルまでの経験値" max="100" value="0"></progress>
+      </div>
+      <nav class="progress-actions" aria-label="やり込み">
+        <button id="show-missions" class="secondary" type="button">ミッション</button>
+        <button id="show-collection" class="secondary" type="button">おさかな図鑑</button>
+      </nav>
+    </section>
+    <dialog id="progress-dialog" class="progress-dialog" aria-labelledby="progress-dialog-title">
+      <header>
+        <button id="back-to-title" class="secondary" type="button" autofocus>← 戻る</button>
+        <h2 id="progress-dialog-title"></h2>
+        <p id="progress-dialog-summary"></p>
+      </header>
+      <ul id="progress-list"></ul>
+    </dialog>
+    <p id="instruction" class="instruction" hidden>左右になぞる・マウスを動かす・← → キー</p>
+    <noscript>遊ぶにはブラウザの JavaScript を有効にしてください。</noscript>
+  </main>
+</body>
+</html>
