@@ -9,8 +9,11 @@
   <script src="./cat-face.js" defer></script>
   <script src="./fish-data.js" defer></script>
   <script src="./achievements.js" defer></script>
+  <script src="./player-data.js" defer></script>
+  <script src="./save-data.js" defer></script>
   <script src="./progress.js" defer></script>
   <script src="./collection.js" defer></script>
+  <script src="./profile-ui.js" defer></script>
   <script src="./power-ups.js" defer></script>
   <script src="./game.js" defer></script>
 </head>
@@ -50,6 +53,7 @@
           </dl>
           <dl class="round-progress">
             <div><dt>獲得XP</dt><dd id="earned-xp">—</dd></div>
+            <div id="round-rewards-row" hidden><dt>ボーナス</dt><dd id="round-rewards"></dd></div>
             <div><dt><span id="discovery-badge" class="new-badge" hidden>NEW</span> 新しく発見した魚</dt><dd id="new-fish">—</dd></div>
             <div><dt>解除した実績</dt><dd id="new-missions">—</dd></div>
           </dl>
@@ -79,20 +83,59 @@
       </details>
       <div class="profile">
         <div class="progress-row"><strong id="level">Lv. 1</strong><span id="rank"></span><small id="xp-label"></small></div>
+        <p id="active-title" class="active-title" hidden></p>
         <progress id="xp-bar" aria-label="次のレベルまでの経験値" max="100" value="0"></progress>
       </div>
       <nav class="progress-actions" aria-label="やり込み">
         <button id="show-missions" class="secondary" type="button">ミッション</button>
         <button id="show-collection" class="secondary" type="button">おさかな図鑑</button>
       </nav>
+      <div class="profile-links">
+        <button id="show-records" type="button">プレイきろく</button>
+        <button id="show-settings" type="button">設定</button>
+      </div>
     </section>
+    <dialog id="player-dialog" class="progress-dialog" aria-labelledby="player-dialog-title">
+      <header>
+        <button id="close-player" class="secondary" type="button" autofocus>← 戻る</button>
+        <h2 id="player-dialog-title"></h2>
+      </header>
+      <div id="player-records" hidden>
+        <dl id="stats-list" class="stats-list"></dl>
+        <h3>称号コレクション</h3>
+        <label for="title-choice">タイトルに表示する称号</label>
+        <select id="title-choice"></select>
+        <ul id="title-list" class="title-list"></ul>
+      </div>
+      <div id="player-settings" hidden>
+        <p>バックアップをこの端末に保存し、別の端末でも復元できます。</p>
+        <button id="export-save" class="secondary save-action" type="button">セーブデータをバックアップ</button>
+        <label class="save-file-label" for="import-save">セーブデータを復元</label>
+        <input id="import-save" type="file" accept=".json,application/json">
+        <section id="restore-preview" class="restore-preview" aria-labelledby="restore-title" hidden>
+          <h3 id="restore-title">復元内容を確認</h3>
+          <dl id="restore-summaries"></dl>
+          <p>復元すると現在の進捗と設定がバックアップの内容に置き換わります。復元前のデータはこの端末に退避します。</p>
+          <div class="progress-actions">
+            <button id="cancel-restore" class="secondary" type="button">キャンセル</button>
+            <button id="confirm-restore" class="secondary" type="button">復元する</button>
+          </div>
+        </section>
+      </div>
+      <p id="player-status" class="player-status" role="status"></p>
+    </dialog>
     <dialog id="progress-dialog" class="progress-dialog" aria-labelledby="progress-dialog-title">
       <header>
         <button id="back-to-title" class="secondary" type="button" autofocus>← 戻る</button>
         <h2 id="progress-dialog-title"></h2>
+        <div id="mission-tabs" class="mission-tabs" role="tablist" aria-label="ミッションの種類" hidden>
+          <button type="button" role="tab" id="tab-achievements" aria-controls="mission-panel" aria-selected="true">実績</button>
+          <button type="button" role="tab" id="tab-daily" aria-controls="mission-panel" aria-selected="false" tabindex="-1">デイリー</button>
+          <button type="button" role="tab" id="tab-weekly" aria-controls="mission-panel" aria-selected="false" tabindex="-1">週間</button>
+        </div>
         <p id="progress-dialog-summary"></p>
       </header>
-      <ul id="progress-list"></ul>
+      <div id="mission-panel"><ul id="progress-list"></ul></div>
     </dialog>
     <p id="instruction" class="instruction" hidden>左右になぞる・マウスを動かす・← → キー</p>
     <noscript>遊ぶにはブラウザの JavaScript を有効にしてください。</noscript>

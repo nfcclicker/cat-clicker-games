@@ -355,3 +355,75 @@ progress::-moz-progress-bar { background: #66a6b4; border-radius: 999px; }
 @media (prefers-reduced-motion: reduce) {
   .level-up, .confetti span { animation: none; }
 }
+
+.profile-links {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  column-gap: 14px;
+  margin-top: 1px;
+}
+.profile-links button {
+  min-height: 44px;
+  padding: 5px 9px;
+  border: 0;
+  background: transparent;
+  color: #6d4d49;
+  text-decoration: underline;
+  font-size: .79rem;
+  font-weight: 800;
+}
+.active-title { margin: 5px 0 2px; color: #965267; font-size: .78rem; font-weight: 850; }
+.mission-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  margin: 8px 0;
+}
+.mission-tabs button {
+  min-height: 44px;
+  padding: 4px;
+  border: 1px solid #a7cbd1;
+  border-radius: 11px;
+  color: #365863;
+  background: #e4f2f1;
+  font-size: .78rem;
+  font-weight: 800;
+}
+.mission-tabs [aria-selected="true"] { border-color: #b46570; color: #693744; background: #f6d3d8; }
+.period-note {
+  padding: 7px 9px;
+  border-radius: 8px;
+  color: #74531c;
+  background: #fff1c8;
+  font-size: .75rem;
+}
+#player-dialog h3 { margin: 13px 0 7px; font-size: 1rem; }
+.stats-list { margin-top: 0; padding: 4px 8px; border: 1px solid #ead8c4; border-radius: 12px; background: #fffdf6; }
+#player-dialog dt, #player-dialog dd { overflow-wrap: anywhere; }
+#player-dialog dd { text-align: right; }
+#title-choice {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  margin-top: 5px;
+  padding: 5px 8px;
+  border: 1px solid #9cbdc3;
+  border-radius: 10px;
+  background: #fffdf6;
+  color: inherit;
+  font: inherit;
+}
+#player-dialog label, .title-list { font-size: .79rem; }
+.title-list { list-style: none; padding: 0; margin: 6px 0; }
+.title-list li { padding: 7px 3px; border-bottom: 1px dashed #e6d2bd; }
+.title-list .earned { color: #8d4c5d; font-weight: 850; }
+.save-action { display: block; width: 100%; margin: 11px 0; }
+.save-file-label { display: block; font-weight: 850; margin: 12px 0 5px; }
+#import-save { width: 100%; max-width: 100%; min-height: 44px; }
+.restore-preview { padding: 4px 9px 10px; border: 1px solid #d8b9a6; border-radius: 12px; background: #fffdf6; }
+.restore-preview dt { flex: 0 0 5.8rem; }
+.restore-preview .progress-actions { margin-top: 8px; }
+#confirm-restore { color: #643745; background: #f6d3d8; border-color: #b46570; }
+#player-status { margin-top: 9px; font-weight: 800; }
+#player-status:empty { display: none; }

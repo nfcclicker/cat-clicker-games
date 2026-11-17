@@ -5,7 +5,7 @@ const canvas = byId("scene");
 const field = byId("field");
 const ctx = canvas.getContext("2d");
 const duration = 30_000;
-const bestKey = "cat-clicker:white-basket:best";
+
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const points = { fish: 10, gold: 50, boot: -20 };
 
@@ -32,11 +32,7 @@ let objects = [];
 let effects = [];
 const keys = new Set();
 
-try {
-  best = Math.max(0, Number(localStorage.getItem(bestKey)) || 0);
-} catch {
-  // The score still works for this page if storage is disabled.
-}
+best = readStoredBest();
 byId("best").textContent = best;
 
 const notes = {
@@ -51,7 +47,7 @@ const notes = {
 };
 let audio;
 let volume;
-let muted = true;
+let muted = savedProgress.settings.muted;
 
 async function enableAudio() {
   try {
@@ -88,12 +84,34 @@ function sound(type) {
   });
 }
 
-byId("sound").addEventListener("click", () => {
-  muted = !muted;
+function updateSoundButton() {
   byId("sound").setAttribute("aria-pressed", String(!muted));
   byId("sound-state").textContent = muted ? "OFF" : "ON";
   if (volume) volume.gain.value = muted ? 0 : 0.18;
+}
+updateSoundButton();
+
+function applyRestoredSettings(restored) {
+  best = restored.best;
+  muted = restored.progress.settings.muted;
+  byId("best").textContent = best;
+  updateSoundButton();
+}
+
+byId("sound").addEventListener("click", () => {
+  muted = !muted;
+  updateSoundButton();
   if (!muted) void enableAudio();
+  void savePlayerSettings({ muted }).catch(() => {
+    // Sound remains usable in this session if storage is unavailable.
+  });
+});
+
+window.addEventListener("storage", (event) => {
+  if (event.key !== progressKey && event.key !== bestKey && event.key !== restoreJournalKey) return;
+  if (state !== "title" || unsavedRounds.length) return;
+  const progress = readProgress();
+  applyRestoredSettings({ best: readStoredBest(), progress });
 });
 
 // All drawings use CSS-pixel coordinates. Paths are reused across frames.
@@ -405,6 +423,7 @@ function catchItem(object, now) {
     }
     return;
   }
+  if (type === "boot") round.boots += 1;
   if (type === "boot" && now < powers.guardEnd) {
     catchEffect(object, now, "ガード！", "#865b1b");
     return;
@@ -503,21 +522,24 @@ function finish() {
   byId("new-missions").textContent = "…";
   byId("level-up").hidden = true;
   byId("save-warning").hidden = true;
+  byId("round-rewards-row").hidden = true;
+  round.day = localPlayDay();
+  round.playMs = duration + powers.extension;
+  round.finalScore = score;
+  round.previousBest = best;
+  celebrateRecord(false);
   void saveRound(round).then((summary) => {
+    best = summary.best;
+    byId("final-best").textContent = best;
+    celebrateRecord(score > summary.previousBest);
     renderRoundSummary(summary);
+  }).catch(() => {
+    byId("save-warning").hidden = false;
+  }).finally(() => {
     byId("replay").disabled = false;
     byId("return-title").disabled = false;
   });
-  let previousBest = best;
-  try {
-    previousBest = Math.max(best, Number(localStorage.getItem(bestKey)) || 0);
-    best = Math.max(previousBest, score);
-    localStorage.setItem(bestKey, String(best));
-  } catch {
-    best = Math.max(best, score);
-  }
   byId("time").textContent = "0";
-  celebrateRecord(score > previousBest);
   byId("final-score").textContent = score;
   byId("final-best").textContent = best;
   byId("final-fish").textContent = fishCount;
