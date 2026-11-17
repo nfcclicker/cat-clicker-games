@@ -5,6 +5,13 @@ const numberFormat = new Intl.NumberFormat("ja-JP");
 const dateFormat = new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium", timeStyle: "short" });
 const formatCount = (value) => numberFormat.format(value);
 const progressDialog = progressElement("progress-dialog");
+const stageChoice = progressElement("stage-choice");
+const rarityFilter = progressElement("filter-rarity");
+const stageFilter = progressElement("filter-stage");
+const collectionFilters = progressElement("collection-filters");
+const fishDetail = progressElement("fish-detail");
+let collectionScroll = 0;
+let inspectedFish = "";
 
 function makeElement(tag, text, className) {
   const element = document.createElement(tag);
@@ -13,9 +20,24 @@ function makeElement(tag, text, className) {
   return element;
 }
 
+function stageOption(value, label, disabled = false) {
+  const option = makeElement("option", label);
+  option.value = value;
+  option.disabled = disabled;
+  return option;
+}
+
+function refreshStageChoice(level) {
+  const selected = availableSea(stageChoice.value, level);
+  stageChoice.replaceChildren(...seaStages.map((stage) => stageOption(stage.id,
+    stage.level <= level ? stage.label : stage.label + "（Lv. " + stage.level + "）", stage.level > level)));
+  stageChoice.value = selected.id;
+}
+
 function refreshTitleProgress() {
   if (!unsavedRounds.length) savedProgress = readProgress();
   const { level, xp, needed } = levelInfo(savedProgress.xp);
+  refreshStageChoice(level);
   const ranks = ["おさかな見習い", "おさかな探検家", "おさかな名人", "おさかな達人", "おさかなマスター"];
   progressElement("level").textContent = "Lv. " + level;
   progressElement("rank").textContent = ranks[Math.min(4, Math.floor(level / 10))];
@@ -47,26 +69,87 @@ function missionCards(progress) {
   });
 }
 
-function fishCards(progress) {
-  return rareFish.map((fish) => {
-    const entry = progress.collection[fish.id];
-    const card = makeElement("li", undefined, "collection-card");
-    const image = makeElement("canvas");
-    image.width = 176;
-    image.height = 100;
-    image.setAttribute("aria-hidden", "true");
-    drawRareFish(image.getContext("2d"), fish, 84, 52, 2, 0, !entry);
-    card.append(image, makeElement("strong", entry ? fish.name : "？？？"));
-    if (entry) {
-      card.append(makeElement("p", "★".repeat(fish.tier), "fish-stars"),
-        makeElement("p", "捕獲 " + formatCount(entry.count) + " 匹"),
-        makeElement("p", "発見 " + (entry.firstSeen ? dateFormat.format(new Date(entry.firstSeen)) : "日時不明")));
-    } else {
-      card.append(makeElement("p", "未発見"));
-    }
-    return card;
-  });
+function fishIllustration(fish, entry, large = false) {
+  const canvas = makeElement("canvas");
+  canvas.width = large ? 300 : 176;
+  canvas.height = large ? 155 : 100;
+  canvas.setAttribute("aria-hidden", "true");
+  drawRareFish(canvas.getContext("2d"), fish, canvas.width / 2 - 3, canvas.height / 2,
+    large ? 3.3 : 2, 0, !entry);
+  return canvas;
 }
+
+function visibleFish() {
+  return rareFish.filter((fish) =>
+    (!rarityFilter.value || fish.tier === Number(rarityFilter.value)) &&
+    (!stageFilter.value || fish.stages.includes(stageFilter.value)));
+}
+
+function renderFishList() {
+  const list = progressElement("progress-list");
+  const count = Object.keys(savedProgress.collection).length;
+  const visible = visibleFish();
+  progressElement("progress-dialog-summary").textContent = "収集率 " + Math.round(count / rareFish.length * 100) +
+    "%（" + count + " / " + rareFish.length + " 種）";
+  list.className = "collection-grid";
+  list.replaceChildren(...visible.map((fish) => {
+    const entry = savedProgress.collection[fish.id];
+    const card = makeElement("li", undefined, "collection-card");
+    const button = makeElement("button", undefined, "fish-entry");
+    button.type = "button";
+    button.dataset.fish = fish.id;
+    button.append(fishIllustration(fish, entry), makeElement("strong", entry ? fish.name : "？？？"));
+    if (entry) {
+      button.append(makeElement("p", "★".repeat(fish.tier), "fish-stars"));
+      if (!savedProgress.seenFish.includes(fish.id)) button.append(makeElement("span", "NEW", "new-badge"));
+    } else {
+      button.append(makeElement("p", fish.hint ? "未発見・隠し魚" : "未発見"));
+      if (fish.hint) button.append(makeElement("p", fish.hint, "fish-hint"));
+    }
+    button.addEventListener("click", () => openFishDetail(fish));
+    card.append(button);
+    return card;
+  }));
+  if (!visible.length) list.append(makeElement("li", "条件に合う魚はいません。", "period-note"));
+}
+
+function openFishDetail(fish) {
+  const entry = savedProgress.collection[fish.id];
+  collectionScroll = progressDialog.scrollTop;
+  inspectedFish = fish.id;
+  const body = progressElement("fish-detail-body");
+  body.replaceChildren(fishIllustration(fish, entry, true));
+  if (entry) {
+    body.append(makeElement("p", "★".repeat(fish.tier) + " ／ " + fish.points + " 点", "fish-stars"),
+      makeElement("p", fish.description),
+      makeElement("p", "捕獲数 " + formatCount(entry.count) + " 匹"),
+      makeElement("p", "初回発見 " + (entry.firstSeen ? dateFormat.format(new Date(entry.firstSeen)) : "日時不明")));
+    if (!savedProgress.seenFish.includes(fish.id)) void markFishSeen(fish.id).catch(() => {});
+  } else {
+    body.append(makeElement("p", "未発見"));
+  }
+  if (fish.hint) body.append(makeElement("p", fish.hint, "period-note"));
+  body.append(makeElement("p", "出現ステージ " + fish.stages.map((id) => stagesById[id].label).join("・")));
+  progressElement("fish-detail-title").textContent = entry ? fish.name : "？？？";
+  collectionFilters.hidden = true;
+  progressElement("mission-panel").hidden = true;
+  fishDetail.hidden = false;
+  progressDialog.scrollTop = 0;
+  progressElement("fish-detail-title").focus({ preventScroll: true });
+}
+
+progressElement("back-to-fish").addEventListener("click", () => {
+  fishDetail.hidden = true;
+  collectionFilters.hidden = false;
+  progressElement("mission-panel").hidden = false;
+  renderFishList();
+  progressDialog.scrollTop = collectionScroll;
+  progressElement("progress-list").querySelector('[data-fish="' + inspectedFish + '"]')?.focus({ preventScroll: true });
+});
+for (let tier = 1; tier <= 5; tier++) rarityFilter.append(stageOption(String(tier), "★".repeat(tier)));
+for (const stage of seaStages) stageFilter.append(stageOption(stage.id, stage.label));
+rarityFilter.addEventListener("change", renderFishList);
+stageFilter.addEventListener("change", renderFishList);
 
 const missionTabs = ["achievements", "daily", "weekly"];
 const missionPanel = progressElement("mission-panel");
@@ -132,16 +215,13 @@ function showProgressDialog(kind) {
   const isCollection = kind === "collection";
   progressElement("progress-dialog-title").textContent = isCollection ? "おさかな図鑑" : "ミッション";
   progressElement("mission-tabs").hidden = isCollection;
+  fishDetail.hidden = true;
+  missionPanel.hidden = false;
+  collectionFilters.hidden = !isCollection;
   if (isCollection) {
-    const count = Object.keys(savedProgress.collection).length;
-    const total = rareFish.length;
-    progressElement("progress-dialog-summary").textContent = "収集率 " + Math.round(count / total * 100) +
-      "%（" + count + " / " + total + " 種）";
-    const list = progressElement("progress-list");
     missionPanel.removeAttribute("role");
     missionPanel.removeAttribute("aria-labelledby");
-    list.className = "collection-grid";
-    list.replaceChildren(...fishCards(savedProgress));
+    renderFishList();
   } else {
     renderMissionTab("achievements");
     clearInterval(missionDateTimer);
@@ -174,6 +254,7 @@ window.addEventListener("storage", (event) => {
   if (event.key !== progressKey || unsavedRounds.length) return;
   refreshTitleProgress();
   if (progressDialog.open && !progressElement("mission-tabs").hidden) renderMissionTab(activeMissionTab);
+  else if (progressDialog.open && fishDetail.hidden) renderFishList();
 });
 
 let toastTimer;

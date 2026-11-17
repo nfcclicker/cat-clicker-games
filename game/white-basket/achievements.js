@@ -1,6 +1,6 @@
 "use strict";
 
-const missions = [
+const originalMissions = [
   ["first", "はじめてのおさかな", "魚を1匹キャッチ", 1, (p) => p.catches],
   ["beginner", "おさかな初心者", "累計50匹キャッチ", 50, (p) => p.catches],
   ["expert", "おさかな名人", "累計200匹キャッチ", 200, (p) => p.catches],
@@ -12,8 +12,18 @@ const missions = [
   ["score500", "スコアキング", "1プレイで500点に到達", 500, (p) => p.peakScore],
   ["daily", "毎日おさかな", "異なる3日でプレイを完了", 3, (p) => p.days.length],
   ["adventure", "ねこの大冒険", "累計30プレイを完了", 30, (p) => p.plays],
-  ["scholar", "おさかな博士", "レア魚12種類を発見", 12, (p) => Object.keys(p.collection).length],
+  ["scholar", "おさかな博士", "レア魚12種類を発見", 12, (p) => originalRareFish.filter(({ id }) => p.collection[id]).length],
 ].map(([id, name, description, target, value]) => ({ id, name, description, target, value }));
+
+const stageMissions = [
+  ["newSea", "新しい海", "Lv.5でサンゴ礁を解放", 5, (p) => levelInfo(p.xp).level],
+  ["deepExplorer", "深海探検家", "深海で魚を捕獲", 1, (p) => p.stageCatches.deep ?? 0],
+  ["starTraveler", "星空の旅人", "星空の海で魚を捕獲", 1, (p) => p.stageCatches.starlit ?? 0],
+  ["secretFish", "幻の発見", "隠し魚を初めて捕獲", 1, (p) => p.collection.oarfish || p.collection.moon ? 1 : 0],
+  ["scholar24", "新おさかな博士", "図鑑の24種類をコンプリート", 24, (p) => Object.keys(p.collection).length],
+].map(([id, name, description, target, value]) => ({ id, name, description, target, value }));
+
+const missions = [...originalMissions, ...stageMissions];
 
 function eligibleMissions(progress) {
   return missions.filter((mission) => mission.value(progress) >= mission.target &&

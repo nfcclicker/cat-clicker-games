@@ -7,6 +7,7 @@
   <title>おさかなキャッチ｜ねこクリッカー</title>
   <link rel="stylesheet" href="./style.css">
   <script src="./cat-face.js" defer></script>
+  <script src="./stages.js" defer></script>
   <script src="./fish-data.js" defer></script>
   <script src="./achievements.js" defer></script>
   <script src="./player-data.js" defer></script>
@@ -31,6 +32,7 @@
     <div id="field" class="field">
       <canvas id="scene" aria-label="籠に入った白猫とおさかな"></canvas>
       <div id="hud" class="hud" hidden>
+        <span id="play-stage" class="play-stage"></span>
         <div><span>スコア</span><strong id="score">0</strong></div>
         <div><span>のこり</span><strong id="time">30</strong><small> 秒</small></div>
       </div>
@@ -71,6 +73,9 @@
         <span><i class="boot-mark" aria-hidden="true"></i>長靴 <b>−20</b></span>
       </div>
       <button id="start" class="primary" type="button">あそぶ <span aria-hidden="true">▶</span></button>
+      <label class="stage-control" for="stage-choice">ステージ
+        <select id="stage-choice"></select>
+      </label>
       <p class="best"><span aria-hidden="true">★</span> ハイスコア <strong id="best">0</strong></p>
       <details class="power-guide">
         <summary>フィーバーとアイテム</summary>
@@ -135,7 +140,16 @@
         </div>
         <p id="progress-dialog-summary"></p>
       </header>
+      <div id="collection-filters" class="collection-filters" hidden>
+        <label>レア度 <select id="filter-rarity"><option value="">すべて</option></select></label>
+        <label>ステージ <select id="filter-stage"><option value="">すべて</option></select></label>
+      </div>
       <div id="mission-panel"><ul id="progress-list"></ul></div>
+      <section id="fish-detail" class="fish-detail" aria-labelledby="fish-detail-title" hidden>
+        <button id="back-to-fish" class="secondary" type="button">← 一覧へ</button>
+        <h3 id="fish-detail-title" tabindex="-1"></h3>
+        <div id="fish-detail-body"></div>
+      </section>
     </dialog>
     <p id="instruction" class="instruction" hidden>左右になぞる・マウスを動かす・← → キー</p>
     <noscript>遊ぶにはブラウザの JavaScript を有効にしてください。</noscript>

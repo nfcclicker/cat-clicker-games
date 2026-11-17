@@ -2,10 +2,11 @@
 
 const bestKey = "cat-clicker:white-basket:best";
 const migrationBackupKey = "cat-clicker:white-basket:backup:before-v22";
+const stageMigrationBackupKey = "cat-clicker:white-basket:backup:before-v23";
 const restoreBackupKey = "cat-clicker:white-basket:backup:before-restore";
 const restoreJournalKey = "cat-clicker:white-basket:restore-journal";
 const saveFormat = "osakana-catch:white-basket";
-const saveVersion = 1;
+const saveVersion = 2;
 const maxSaveBytes = 2 * 1024 * 1024;
 
 function rawSavePair() {
@@ -55,15 +56,33 @@ function settleRestore() {
 }
 
 function archiveLegacySave() {
-  if (localStorage.getItem(migrationBackupKey) !== null) return;
   const pair = visibleSavePair();
   if (pair.progress === null && pair.best === null) return;
-  try {
-    if (JSON.parse(pair.progress)?.revision === 22) return;
-  } catch {
-    // Keep the exact original bytes even if the old record was damaged.
+  let revision;
+  try { revision = JSON.parse(pair.progress)?.revision; } catch {
+    // Preserve the original even if its JSON cannot be decoded.
   }
-  localStorage.setItem(migrationBackupKey, JSON.stringify(pair));
+  if (revision === 23) return;
+  if (revision !== 22 && localStorage.getItem(migrationBackupKey) === null) {
+    localStorage.setItem(migrationBackupKey, JSON.stringify(pair));
+  }
+  if (localStorage.getItem(stageMigrationBackupKey) === null) {
+    localStorage.setItem(stageMigrationBackupKey, JSON.stringify(pair));
+  }
+}
+
+function markFishSeen(id) {
+  return withProgressLock(() => {
+    settleRestore();
+    const progress = readProgress();
+    if (!progress.collection[id] || progress.seenFish.includes(id)) return false;
+    archiveLegacySave();
+    progress.seenFish.push(id);
+    localStorage.setItem(progressKey, JSON.stringify(progress));
+    if (unsavedRounds.length) savedProgress.seenFish = progress.seenFish;
+    else savedProgress = progress;
+    return true;
+  });
 }
 
 function readStoredBest() {
@@ -124,14 +143,15 @@ function validPeriodRewards(periods, weekly) {
 }
 
 function validateSaveArchive(raw) {
-  if (!raw || raw.format !== saveFormat || raw.version !== saveVersion || raw.progress?.revision !== 22) {
+  const revision = raw?.version === 1 ? 22 : raw?.version === saveVersion ? 23 : null;
+  if (!revision || raw.format !== saveFormat || raw.progress?.revision !== revision) {
     throw new Error("このゲームに対応したセーブデータではありません。");
   }
   if (!Number.isSafeInteger(raw.best) || raw.best < 0 ||
       typeof raw.exportedAt !== "string" || !Number.isFinite(Date.parse(raw.exportedAt))) {
     throw new Error("ハイスコアまたは保存日時が不正です。");
   }
-  const progress = normalizeProgress(raw.progress);
+  const progress = normalizeProgress(raw.progress, revision);
   const level = levelInfo(progress.xp).level;
   if (level !== raw.level || progress.timedPlays > progress.plays ||
       progress.playMs < progress.timedPlays * 30000 || progress.playMs > progress.timedPlays * 35000 ||
@@ -139,7 +159,7 @@ function validateSaveArchive(raw) {
       !validPeriodRewards(progress.daily, false) || !validPeriodRewards(progress.weekly, true)) {
     throw new Error("セーブデータの項目または値が不正です。");
   }
-  return { best: raw.best, level, progress };
+  return { best: raw.best, level, progress: migrateProgress(progress) };
 }
 
 function restoreSaveArchive(raw) {

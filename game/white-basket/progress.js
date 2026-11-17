@@ -17,16 +17,16 @@ function normalizeSettings(raw) {
     title: playerTitles.some(({ id }) => id === raw?.title) ? raw.title : "" };
 }
 
-function normalizeProgress(raw) {
+function normalizeProgress(raw, revision = 23) {
   const data = raw && typeof raw === "object" ? raw : {};
   const progress = Object.fromEntries(countFields.map((key) => [key, safeCount(data[key])]));
   progress.days = Array.isArray(data.days)
     ? [...new Set(data.days.filter(isPlayDay))]
     : [];
-  progress.achievements = missions.filter(({ id }) =>
+  progress.achievements = (revision === 22 ? originalMissions : missions).filter(({ id }) =>
     Array.isArray(data.achievements) && data.achievements.includes(id)).map(({ id }) => id);
   progress.collection = {};
-  for (const { id } of rareFish) {
+  for (const { id } of (revision === 22 ? originalRareFish : rareFish)) {
     const entry = data.collection?.[id];
     const count = safeCount(entry?.count);
     if (count) {
@@ -37,16 +37,34 @@ function normalizeProgress(raw) {
       };
     }
   }
-  progress.revision = 22;
+  progress.revision = revision;
   progress.daily = normalizePeriods(data.daily, false);
   progress.weekly = normalizePeriods(data.weekly, true);
   progress.settings = normalizeSettings(data.settings);
+  if (revision === 23) {
+    progress.stageCatches = {};
+    for (const { id } of seaStages) {
+      const catches = safeCount(data.stageCatches?.[id]);
+      if (catches) progress.stageCatches[id] = catches;
+    }
+    const seen = Array.isArray(data.seenFish) ? data.seenFish
+      : data.revision !== 23 ? Object.keys(progress.collection) : [];
+    progress.seenFish = Object.keys(progress.collection).filter((id) => seen.includes(id));
+  }
+  return progress;
+}
+
+function migrateProgress(raw) {
+  const progress = normalizeProgress(raw);
+  if (levelInfo(progress.xp).level >= 5 && !progress.achievements.includes("newSea")) {
+    progress.achievements.push("newSea");
+  }
   return progress;
 }
 
 function readProgress() {
   try {
-    return normalizeProgress(JSON.parse(visibleSavePair().progress));
+    return migrateProgress(JSON.parse(visibleSavePair().progress));
   } catch {
     return normalizeProgress(null);
   }
@@ -63,10 +81,10 @@ function localPlayDay(date = new Date()) {
     .map((part) => String(part).padStart(2, "0")).join("-");
 }
 
-function newRound(bestScore, date = new Date()) {
+function newRound(bestScore, date = new Date(), stageId = defaultSea.id) {
   return { catches: 0, gold: 0, maxCombo: 0, peakScore: bestScore, collection: {},
     day: localPlayDay(date), playMs: 0, roundScore: 0, finalScore: null, boots: 0,
-    committed: false, announced: new Set() };
+    stageId, hiddenAttempted: false, feverFish: 0, committed: false, announced: new Set() };
 }
 
 function levelInfo(totalXP) {
@@ -99,7 +117,8 @@ function recordRoundCatch(round, type, combo, score, now = new Date()) {
 
 function applyRound(base, round, complete) {
   const next = { ...base, days: [...base.days], achievements: [...base.achievements],
-    collection: { ...base.collection } };
+    collection: { ...base.collection }, stageCatches: { ...base.stageCatches } };
+  if (round.catches) next.stageCatches[round.stageId] = addCounts(next.stageCatches[round.stageId] ?? 0, round.catches);
   next.catches = addCounts(next.catches, round.catches);
   next.gold = addCounts(next.gold, round.gold);
   next.maxCombo = Math.max(next.maxCombo, round.maxCombo);
@@ -126,11 +145,11 @@ function applyRound(base, round, complete) {
 
 function applyCompletedRound(base, round) {
   const next = applyRound(base, round, true);
-  const unlocked = eligibleMissions(next);
-  next.achievements.push(...unlocked.map(({ id }) => id));
   const rewards = awardPeriodicRewards(next, round);
   const bonusXP = rewards.reduce((sum, reward) => sum + reward.xp, 0);
   next.xp = addCounts(next.xp, bonusXP);
+  const unlocked = eligibleMissions(next);
+  next.achievements.push(...unlocked.map(({ id }) => id));
   return { next, unlocked, rewards, xp: roundXP(round) + bonusXP };
 }
 

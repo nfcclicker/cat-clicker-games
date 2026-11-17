@@ -21,6 +21,8 @@ let combo = 0;
 let round;
 let powers = newPowers();
 let rareReaction = null;
+let sea = defaultSea;
+let waitingSecret = null;
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 let mood = "calm";
 let moodUntil = 0;
@@ -249,7 +251,7 @@ function drawPowerItem(type, x, y, scale, tilt) {
 function background(fever = false, now = 0) {
   ctx.fillStyle = fever
     ? fade(0, height, "#ffe9a6", "#f6bfd7")
-    : fade(0, height, "#d9f2f0", "#bde4e5");
+    : fade(0, height, sea.top, sea.bottom);
   ctx.fillRect(0, 0, width, height);
   for (let row = 0; row * 49 < height; row += 1) {
     for (let col = 0; col * 54 < width; col += 1) {
@@ -265,7 +267,7 @@ function background(fever = false, now = 0) {
         4 + pulse, i % 2 ? "#fffaf1" : "#fff3ba");
     }
   }
-  ctx.fillStyle = "#fdf4dc";
+  ctx.fillStyle = sea.sand;
   ctx.beginPath();
   ctx.moveTo(0, height - 37);
   ctx.bezierCurveTo(width * .29, height - 54, width * .69, height - 18, width, height - 39);
@@ -274,7 +276,14 @@ function background(fever = false, now = 0) {
   ctx.closePath();
   ctx.fill();
   for (let x = 14; x < width; x += 40) {
-    oval(x, height - 12 + (x % 3) * 3, 2.7, 1.3, "#d7b89170");
+    oval(x, height - 12 + (x % 3) * 3, 2.7, 1.3, sea.accent);
+  }
+  drawSeaScenery(ctx, sea, width, height);
+  if (sea.id === "starlit" || sea.id === "phantom") {
+    for (let i = 0; i < 5; i++) {
+      sparkle(width * (.10 + .19 * i), height * (.27 + (i % 3) * .15),
+        3 + i % 3, i % 2 ? sea.accent : "#fff2dc");
+    }
   }
 }
 
@@ -305,7 +314,7 @@ function draw(now) {
     if (Object.hasOwn(powerItems, object.type)) {
       drawPowerItem(object.type, object.x * width, object.y, scale, object.tilt);
     } else if (fish) {
-      if (fish.tier === 5) {
+      if (fish.tier === 5 || fish.hint) {
         const pulse = reducedMotion.matches ? .5 : (Math.sin(now / 130) + 1) * .5;
         oval(object.x * width, object.y, (32 + pulse * 5) * scale, 21 * scale, "#fff4ab7d");
         sparkle(object.x * width - 27 * scale, object.y - 15 * scale, 5 + pulse * 4, "#fffbe2");
@@ -329,10 +338,17 @@ function draw(now) {
   cat(catX, height - 13, scale, remaining ? mood : "calm", bounce);
   if (reaction) {
     const progress = (now - reaction.at) / reaction.duration;
-    const count = reaction.legendary ? 10 : 4;
+    const count = reaction.secret ? 12 : reaction.legendary ? 10 : 4;
     const radius = reducedMotion.matches ? 58 : 36 + progress * 48;
     ctx.save();
     ctx.globalAlpha = 1 - progress;
+    if (reaction.secret) {
+      ctx.beginPath();
+      ctx.ellipse(catX, height - (61 + bounce) * scale, radius * scale, (radius + 7) * scale, 0, 0, Math.PI * 2);
+      ctx.strokeStyle = "#ffe5a8";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
     for (let i = 0; i < count; i += 1) {
       const angle = Math.PI * (1 + i / (count - 1));
       sparkle(catX + Math.cos(angle) * radius * scale,
@@ -393,7 +409,7 @@ function spawn(elapsed) {
   const type = elapsed < 3600 ? "fish" : roll < .14 ? "boot" : roll < .28 ? "gold" : "fish";
   lastLane = clamp(lastLane + (Math.random() - .5) * .85, .12, .88);
   objects.push({
-    type: type === "fish" ? rollRareFish()?.id ?? type : type,
+    type: type === "fish" ? rollRareFish(Math.random, sea.id)?.id ?? type : type,
     x: lastLane,
     y: -24 * artScale(),
     tilt: (Math.random() - .5) * .45,
@@ -444,16 +460,27 @@ function catchItem(object, now) {
     fishCount += 1;
     combo += 1;
     const feverStarted = tryFever(powers, combo, now);
-    if (now < powers.feverEnd) value *= 2;
+    const fever = now < powers.feverEnd;
+    if (fever) {
+      value *= 2;
+      round.feverFish = feverStarted ? 1 : round.feverFish + 1;
+    }
+    if (duration + powers.extension - (now - startedAt) >= 2400) {
+      waitingSecret = hiddenFishAttempt(round, combo, fever) ?? waitingSecret;
+    }
     score += value;
     recordRoundCatch(round, type, combo, score);
     announceMissions(round);
 
     if (rare) {
       const legendary = rare.tier === 5;
-      rareReaction = { at: now, duration: legendary ? 1150 : 660, jump: legendary ? 24 : 15,
-        legendary, color: rare.color };
-      if (legendary) legendUntil = now + 2100;
+      const secret = Boolean(rare.hint);
+      rareReaction = { at: now, duration: secret ? 1450 : legendary ? 1150 : 660,
+        jump: secret ? 31 : legendary ? 24 : 15, secret, legendary, color: rare.color };
+      if (legendary || secret) {
+        legendToast.textContent = secret ? "隠し魚を発見！ " + rare.name : "でんせつの金魚をキャッチ！";
+        legendUntil = now + 2100;
+      }
     } else {
       rareReaction = null;
     }
@@ -462,7 +489,7 @@ function catchItem(object, now) {
     const label = "+" + value + (combo >= 2 ? "  " + combo + "コンボ" : "");
     catchEffect(object, now, label, rare?.ink ?? (type === "gold" ? "#8b5517" : "#285e74"), isNew);
     if (feverStarted) sound("fever");
-    if (rare?.tier === 5) sound("legend");
+    if (rare?.tier === 5 || rare?.hint) sound("legend");
     else if (!feverStarted) sound(rare?.tier >= 3 ? "gold" : type === "gold" ? "gold" : "fish");
   }
   byId("score").textContent = score;
@@ -586,6 +613,11 @@ function frame(now) {
     if (isFish) combo = 0;
     return false;
   });
+  if (waitingSecret) {
+    objects.push({ type: waitingSecret.id, x: clamp(catX / width, .14, .86),
+      y: -24 * scale, tilt: 0, speed: .61 });
+    waitingSecret = null;
+  }
   byId("time").textContent = Math.ceil((duration + powers.extension - elapsed) / 1000);
   renderPowerHud(now);
   effects = effects.filter((effect) => now - effect.at < 800);
@@ -596,7 +628,10 @@ function frame(now) {
 function start() {
   if (state === "playing" || byId("replay").disabled) return;
   refreshTitleProgress();
-  round = newRound(best);
+  sea = availableSea(stageChoice.value, levelInfo(savedProgress.xp).level);
+  round = newRound(best, new Date(), sea.id);
+  byId("play-stage").textContent = sea.label;
+  waitingSecret = null;
   powers = newPowers();
   rareReaction = null;
   legendUntil = 0;
@@ -626,6 +661,12 @@ function start() {
   });
   requestAnimationFrame(frame);
 }
+
+stageChoice.addEventListener("change", () => {
+  if (state !== "title") return;
+  sea = availableSea(stageChoice.value, levelInfo(savedProgress.xp).level);
+  draw(performance.now());
+});
 
 byId("start").addEventListener("click", start);
 byId("replay").addEventListener("click", start);
