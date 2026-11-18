@@ -756,9 +756,3 @@ document.addEventListener("visibilitychange", () => {
   else if (state !== "playing") void startSaveProtection();
 });
 new ResizeObserver(resize).observe(field);
-
-if (window.isSecureContext && "serviceWorker" in navigator && location.protocol !== "file:") {
-  navigator.serviceWorker.register("./sw.js").catch(() => {
-    // A worker failure does not prevent online play.
-  });
-}

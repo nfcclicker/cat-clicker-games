@@ -1,30 +1,66 @@
 "use strict";
-// Enable only after NFC tag migration and explicit approval.
-const nfcAccessConfig = Object.freeze({ enabled: false, game: "white-basket", key: "wb-2026-k7Qm4Zp9rT2vN6xC" });
+
+const accessDigest = "d846f084fc67fe987b3f83f0c408208d67a2b3b717758a60fa7cda602f11e761";
 const accessStorageKey = "cat-clicker:white-basket:access";
-function verifyAccess(key, stored, enabled = nfcAccessConfig.enabled) {
-  const valid = key === nfcAccessConfig.key;
-  return { allowed: !enabled || valid || stored === "nfc-v1", verified: valid };
+const accessMarker = "nfc-v2";
+const gameScripts = ["stages.js","fish-data.js","aquarium-data.js","achievements.js","player-data.js","transfer-code.js","validation.js","save-history.js","save-data.js","progress.js","collection.js","profile-ui.js","power-ups.js","game.js","session.js","aquarium.js","ui.js"];
+const guide = document.getElementById("access-guide");
+const app = document.querySelector("main.app");
+let gameAccessAllowed = false;
+let gameLoading;
+
+function loadAuthenticatedGame() {
+  gameAccessAllowed = true;
+  guide.hidden = true;
+  app.hidden = false;
+  if (gameLoading) return gameLoading;
+  // Preserve the original script order and prevent the locked page from initializing saves.
+  gameLoading = gameScripts.reduce((ready, file) => ready.then(() => new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "./" + file;
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.append(script);
+  })), Promise.resolve());
+  return gameLoading;
 }
-function initializeAccess() {
+
+async function initializeAccess() {
   const url = new URL(location.href);
   const fragment = new URLSearchParams(url.hash.slice(1));
-  const key = fragment.get("access") ?? url.searchParams.get("access");
-  if (key !== null) {
-    fragment.delete("access");
-    url.searchParams.delete("access");
+  const supplied = fragment.getAll("key");
+  if (supplied.length) {
+    fragment.delete("key");
     url.hash = fragment.toString();
-    history.replaceState(null, "", url.pathname + url.search + url.hash);
+    history.replaceState(history.state, "", url.pathname + url.search + url.hash);
   }
-  let stored;
-  try { stored = localStorage.getItem(accessStorageKey); } catch {}
-  const access = verifyAccess(key, stored);
-  if (access.verified) {
-    try { localStorage.setItem(accessStorageKey, "nfc-v1"); } catch {}
+  let authorized = gameAccessAllowed;
+  try { authorized ||= localStorage.getItem(accessStorageKey) === accessMarker; } catch {}
+  if (supplied.length === 1 && /^[A-Za-z0-9_-]{32}$/.test(supplied[0]) && crypto.subtle) {
+    const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(supplied[0]));
+    const hex = Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, "0")).join("");
+    if (hex === accessDigest) {
+      authorized = true;
+      try { localStorage.setItem(accessStorageKey, accessMarker); } catch {}
+    }
   }
-  document.getElementById("access-guide").hidden = access.allowed;
-  document.querySelector("main.app").hidden = !access.allowed;
-  return access.allowed;
+  if (authorized) await loadAuthenticatedGame();
 }
-let gameAccessAllowed = initializeAccess();
-window.addEventListener("hashchange", () => { gameAccessAllowed = initializeAccess(); });
+
+const guideCanvas = document.getElementById("access-cat");
+const guideContext = guideCanvas.getContext("2d");
+guideContext.translate(100, 151);
+guideContext.scale(1.28, 1.28);
+drawCatFace(guideContext, { coat: "white" });
+
+function checkAccess() {
+  void initializeAccess().catch(() => {
+    if (!gameAccessAllowed) guide.hidden = false;
+  });
+}
+checkAccess();
+window.addEventListener("hashchange", checkAccess);
+
+if (window.isSecureContext && "serviceWorker" in navigator) {
+  navigator.serviceWorker.register("./sw.js", { scope: "./" }).catch(() => {});
+}

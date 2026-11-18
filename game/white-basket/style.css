@@ -786,3 +786,7 @@ button, select, summary, input[type="file"] { touch-action: manipulation; }
   #common-header { border-radius: 0 0 16px 16px; }
   .collection-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
 }
+
+.access-guide { text-align: center; }
+.access-guide canvas { width: 200px; height: 160px; margin: 0 auto; }
+.access-guide h1 { font-size: clamp(25px, 7vw, 40px); }
